@@ -1,0 +1,522 @@
+{
+  "form1": {
+    "Page1": {
+      "Header": {
+        "CRCNum": ""
+      },
+      "Age": "",
+      "AdultFlag": "",
+      "FormVersion": "",
+      "PrevAge": "",
+      "PersonalDetails": {
+        "ApplicationValidatedFlag": "",
+        "ServiceIn": {
+          "UCIClientID": "",
+          "ServiceIn": ""
+        },
+        "OfficeUse": {
+          "ApplicationValidatedFlag": ""
+        },
+        "ApplyingFor": {
+          "RestoreStat": "",
+          "Extend": "",
+          "HiddenStat": "",
+          "TRP": ""
+        },
+        "Name": {
+          "FamilyName": "Shin",
+          "GivenName": "Diana"
+        },
+        "AliasName": {
+          "AliasFamilyName": "",
+          "AliasGivenName": "",
+          "AliasNameIndicator": {
+            "AliasNameIndicator": ""
+          }
+        },
+        "q3-4-5": {
+          "sex": {
+            "Sex": ""
+          },
+          "dob": {
+            "DOBDay": "",
+            "DOBMonth": "",
+            "DOBYear": ""
+          },
+          "pob": {
+            "PlaceBirthCity": "",
+            "PlaceBirthCountry": ""
+          }
+        },
+        "Citizenship": {
+          "Citizenship": ""
+        },
+        "CurrentCOR": {
+          "CurrentCOR": {
+            "Row1": "",
+            "Row2": {
+              "Country": "",
+              "Status": "",
+              "Other": "",
+              "FromDate": "",
+              "ToDate": ""
+            }
+          },
+          "CORDates": {
+            "FromYr": "",
+            "FromMM": "",
+            "FromDD": "",
+            "ToDD": "",
+            "ToYr": "",
+            "ToMM": ""
+          }
+        },
+        "PrevCOR": {
+          "PCRIndicator": "",
+          "PreviousCOR": {
+            "Row1": "",
+            "Row2": {
+              "Country": "",
+              "Status": "",
+              "Other": "",
+              "FromDate": "",
+              "ToDate": ""
+            },
+            "Row3": {
+              "Country": "",
+              "Status": "",
+              "Other": "",
+              "FromDate": "",
+              "ToDate": ""
+            }
+          },
+          "PCRDatesR1": {
+            "FromYr": "",
+            "FromMM": "",
+            "FromDD": "",
+            "ToYr": "",
+            "ToMM": "",
+            "ToDD": ""
+          },
+          "PCRDatesR2": {
+            "FromYr": "",
+            "FromMM": "",
+            "FromDD": "",
+            "ToYr": "",
+            "ToMM": "",
+            "ToDD": ""
+          }
+        }
+      },
+      "MaritalStatus": {
+        "Current": {
+          "MaritalStatus": "",
+          "b": {
+            "DateOfMarriage": "",
+            "MarriageDate": {
+              "FromYr": "",
+              "FromMM": "",
+              "FromDD": ""
+            }
+          },
+          "c": {
+            "FamilyName": "",
+            "GivenName": ""
+          }
+        },
+        "d": {
+          "SpouseStatus": ""
+        }
+      }
+    },
+    "Page2": {
+      "MaritalStatus": {
+        "PrevMarriage": {
+          "PrevMarriedIndicator": "",
+          "DateLastValidated": {
+            "DateCalc": "",
+            "Year": "",
+            "Month": "",
+            "Day": ""
+          },
+          "PMFamilyName": "",
+          "PMGivenName": "",
+          "TypeOfRelationship": "",
+          "From": {
+            "FromDate": ""
+          },
+          "To": {
+            "ToDate": ""
+          },
+          "PreviouslyMarriedDates": {
+            "FromYr": "",
+            "FromMM": "",
+            "FromDD": "",
+            "ToYr": "",
+            "ToMM": "",
+            "ToDD": ""
+          },
+          "dob": {
+            "DOBDay": "",
+            "DOBMonth": "",
+            "DOBYear": ""
+          }
+        }
+      },
+      "Languages": {
+        "nativeLang": "",
+        "communicateLang": "",
+        "LangTestIndicator": "",
+        "FreqLang": ""
+      },
+      "Passport": {
+        "PassportNum": "",
+        "CountryofIssue": "",
+        "IssueDate": "",
+        "ExpiryDate": "",
+        "Issue": {
+          "YYYY": "",
+          "MM": "",
+          "DD": ""
+        },
+        "Expiry": {
+          "YYYY": "",
+          "MM": "",
+          "DD": ""
+        },
+        "TaiwanPIN": "",
+        "IsraelPassportIndicator": ""
+      },
+      "natID": {
+        "SectionHeader": "",
+        "q1": {
+          "natIDIndicator": ""
+        },
+        "natIDdocs": {
+          "DocNum": {
+            "DocNum": ""
+          },
+          "CountryofIssue": {
+            "CountryofIssue": ""
+          },
+          "IssueDate": {
+            "IssueDate": ""
+          },
+          "ExpiryDate": ""
+        }
+      },
+      "USCard": {
+        "SectionHeader": "",
+        "q1": {
+          "usCardIndicator": ""
+        },
+        "usCarddocs": {
+          "DocNum": {
+            "DocNum": ""
+          },
+          "ExpiryDate": ""
+        }
+      },
+      "ContactInformation": {
+        "AddrLbl": "",
+        "Mailing": {
+          "text": "",
+          "AddrLine1": {
+            "POBox": "",
+            "AptUnit": "",
+            "StreetNum": "",
+            "Streetname": ""
+          },
+          "AddrLine2": {
+            "City": "",
+            "Country": "",
+            "Prov": "",
+            "PostalCode": "",
+            "District": ""
+          }
+        },
+        "Resi": {
+          "SameAsAddr": {
+            "SameAsMailingInd": ""
+          },
+          "AddrLine1": {
+            "AptUnit": "",
+            "StreetNum": "",
+            "Streetname": ""
+          },
+          "AddrLine2": {
+            "City": "",
+            "Country": "",
+            "Prov": "",
+            "PostalCode": "",
+            "District": ""
+          }
+        },
+        "q3-4": {
+          "Phone": {
+            "CanOtherInd": {
+              "CanadaUS": "",
+              "Other": ""
+            },
+            "ActualNumber": "",
+            "Type": "",
+            "NumberExt": "",
+            "NumberCountry": "",
+            "NANumber": {
+              "AreaCode": "",
+              "FirstThree": "",
+              "LastFive": ""
+            },
+            "IntlNumber": {
+              "IntlNumber": ""
+            }
+          },
+          "AltPhone": {
+            "CanOtherInd": {
+              "CanadaUS": "",
+              "Other": ""
+            },
+            "ActualNumber": "",
+            "Type": "",
+            "NumberExt": "",
+            "NumberCountry": "",
+            "NANumber": {
+              "AreaCode": "",
+              "FirstThree": "",
+              "LastFive": ""
+            },
+            "IntlNumber": {
+              "IntlNumber": ""
+            }
+          }
+        },
+        "q5-6": {
+          "Fax": {
+            "CanOtherInd": {
+              "CanadaUS": "",
+              "Other": ""
+            },
+            "NumberExt": "",
+            "NumberCountry": "",
+            "ActualNumber": "",
+            "NANumber": {
+              "AreaCode": "",
+              "FirstThree": "",
+              "LastFive": ""
+            },
+            "IntlNumber": {
+              "IntlNumber": ""
+            }
+          },
+          "Email": {
+            "Email": ""
+          }
+        }
+      }
+    },
+    "Page3": {
+      "ComingIntoCda": {
+        "OrigEntry": {
+          "DateLastEntry": "",
+          "Place": ""
+        },
+        "PurposeOfVisit": {
+          "PurposeOfVisit": "",
+          "Other": ""
+        },
+        "RecentEntry": {
+          "DateLastEntry": "",
+          "Place": ""
+        },
+        "PrevDocNum": {
+          "docNum": ""
+        }
+      },
+      "DetailsOfStudy": {
+        "SchoolDetails": {
+          "SchoolName": "",
+          "StudyMajor": {
+            "Program": "",
+            "Level": ""
+          },
+          "Prov": "",
+          "CityTown": "",
+          "Address": "",
+          "DLI": "",
+          "StudentNo": "",
+          "StudyTerm": {
+            "FromDate": "",
+            "ToDate": ""
+          },
+          "EduCosts": {
+            "Tuition": "",
+            "Room": "",
+            "OtherCosts": ""
+          },
+          "Funds": {
+            "FundsAvail": "",
+            "ExpPaidBy": "",
+            "Other": ""
+          }
+        }
+      },
+      "WorkPermit": {
+        "a": {
+          "WorkPermit": ""
+        },
+        "PermitType": ""
+      },
+      "CAQ": {
+        "CertNum": "",
+        "CertExpiry": ""
+      },
+      "PAL": {
+        "PALDocNum": "",
+        "DocExpiry": ""
+      },
+      "Education": {
+        "EducationIndicator": "",
+        "EduLine1": {
+          "From": {
+            "YYYY": "",
+            "MM": ""
+          },
+          "FieldOfStudy": "",
+          "School": ""
+        },
+        "EduLine2": {
+          "To": {
+            "YYYY": "",
+            "MM": ""
+          },
+          "City": "",
+          "Country": "",
+          "Prov": ""
+        }
+      },
+      "Employment": {
+        "EmpRec1": {
+          "Line1": {
+            "From": {
+              "YYYY": "",
+              "MM": ""
+            },
+            "Occupation": "",
+            "Employer": ""
+          },
+          "Line2": {
+            "To": {
+              "YYYY": "",
+              "MM": ""
+            },
+            "City": "",
+            "Country": "",
+            "ProvState": ""
+          }
+        },
+        "EmpRec2": {
+          "Line1": {
+            "From": {
+              "YYYY": "",
+              "MM": ""
+            },
+            "Occupation": "",
+            "Employer": ""
+          },
+          "Line2": {
+            "To": {
+              "YYYY": "",
+              "MM": ""
+            },
+            "City": "",
+            "Country": "",
+            "ProvState": ""
+          }
+        }
+      }
+    },
+    "Page4": {
+      "EmpRec3": {
+        "Line1": {
+          "From": {
+            "YYYY": "",
+            "MM": ""
+          },
+          "Occupation": "",
+          "Employer": ""
+        },
+        "Line2": {
+          "To": {
+            "YYYY": "",
+            "MM": ""
+          },
+          "City": "",
+          "Country": "",
+          "ProvState": ""
+        }
+      },
+      "BackgroundInfo": {
+        "BackgroundHeader": "",
+        "HealthQ": {
+          "qANY": "",
+          "qBNY": "",
+          "MedicalDetails": "",
+          "backgroundInfoCalc": ""
+        },
+        "PrevApplied": {
+          "qANY": "",
+          "qBNY": "",
+          "qCNY": "",
+          "refusedDetails": ""
+        },
+        "Criminal": {
+          "qANY": "",
+          "refusedDetails": ""
+        },
+        "Military": {
+          "qANY": "",
+          "militaryServiceDetails": ""
+        },
+        "Occupation": {
+          "Choice": ""
+        },
+        "GovPosition": {
+          "qGovtNY": ""
+        },
+        "Illtreatment": {
+          "qWitnessNY": ""
+        }
+      },
+      "Signature": {
+        "TextField2": "",
+        "C1CertificateIssueDate": "",
+        "FutureComm": ""
+      },
+      "Important": "",
+      "ReaderInfo": ""
+    },
+    "Barcodes": "",
+    "Page5": {
+      "TextField1": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    "TextField": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  }
+}
