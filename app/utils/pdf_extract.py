@@ -10,9 +10,6 @@ try:
 except ImportError:
     from utils import read_datasets_from_pdf, parse_xml, strip_ns
 
-# ============== 환경 설정 ==============
-INPUT_DIR = Path(__file__).parent.parent / "pdfs"  # PDF가 있는 폴더
-
 # ============== XML 유틸 ==============
 def _find_base_form_node(xml_bytes: bytes) -> tuple[LET._Element, str]:
     root = parse_xml(xml_bytes)
@@ -117,9 +114,9 @@ def _collect_leaf_fields(base: LET._Element) -> List[Field]:
     for el in base.iter():
         if not isinstance(el.tag, str):
             continue
-        if is_leaf(el):
-            rx = xpath_from_to(el, base)
-            jp = path_with_index(el, base)
+        if _is_leaf(el):
+            rx = _xpath_from_to(el, base)
+            jp = _path_with_index(el, base)
             key = ".".join([f"{t}[{i}]" if i >= 0 else t for t, i in jp])
             fields.append(Field(elem=el, rel_xpath=rx, json_path=jp, key_for_map=key))
     # 중복 키 방지
@@ -135,13 +132,22 @@ def _collect_leaf_fields(base: LET._Element) -> List[Field]:
 def _build_json_template(base_tag: str, fields: List[Field]) -> dict:
     tpl: dict = {}
     for f in fields:
-        set_in_nested(tpl, f.json_path)
+        _set_in_nested(tpl, f.json_path)
     return {base_tag: tpl}
 
 # ============== 메인 파이프라인 ==============
-def process_one_pdf(pdf_path: Path) -> None:
-    # field_maps 디렉토리 생성
-    field_maps_dir = Path(__file__).parent.parent / "field_maps"
+def extract_fields_from_pdf(pdf_path: Path, save_to_file: bool = True) -> dict:
+    """PDF에서 필드를 추출하여 JSON 템플릿을 반환합니다.
+    
+    Args:
+        pdf_path: PDF 파일 경로
+        save_to_file: True이면 fields 디렉토리에 JSON 파일로 저장
+    
+    Returns:
+        추출된 필드 정보를 담은 JSON 딕셔너리
+    """
+    # fields 디렉토리 생성 (루트 디렉토리)
+    field_maps_dir = Path(__file__).parent.parent.parent / "fields"
     field_maps_dir.mkdir(exist_ok=True)
 
     # 1) datasets.xml 추출
@@ -153,25 +159,14 @@ def process_one_pdf(pdf_path: Path) -> None:
 
     form_name = pdf_path.stem
 
-    # 3) JSON 템플릿 저장 (field_maps에 저장)
+    # 3) JSON 템플릿 생성
     json_tpl = _build_json_template(base_tag, fields)
-    json_file = field_maps_dir / f"{form_name}.json"
-    with open(json_file, "w", encoding="utf-8") as f:
-        json.dump(json_tpl, f, ensure_ascii=False, indent=2)
-
-    print(f"✅ {pdf_path.name} → field_maps/{form_name}.json 생성 완료 (base={base_tag}, {len(fields)}개 필드)")
-
-
-def main():
-    pdfs = sorted(p for p in INPUT_DIR.iterdir() if p.is_file() and p.suffix.lower() == ".pdf")
-    if not pdfs:
-        print("PDF 파일이 없습니다.")
-        return
-    for p in pdfs:
-        try:
-            process_one_pdf(p)
-        except Exception as e:
-            print(f"❌ 실패: {p.name} - {e}")
-
-if __name__ == "__main__":
-    main()
+    
+    # 4) 파일로 저장 (옵션)
+    if save_to_file:
+        json_file = field_maps_dir / f"{form_name}.json"
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(json_tpl, f, ensure_ascii=False, indent=2)
+        print(f"✅ {pdf_path.name} → fields/{form_name}.json 생성 완료 (base={base_tag}, {len(fields)}개 필드)")
+    
+    return json_tpl

@@ -80,4 +80,3 @@ def set_node(form: etree._Element, xpath: str, val: str):
 	if node is not None:
 		node.text = "" if val is None else str(val)
 
-
