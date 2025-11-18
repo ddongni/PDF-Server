@@ -437,48 +437,9 @@ def _build_field_template(pdf_path: Path) -> dict:
                     _set_in_nested(json_tpl[base_tag], json_path)
                 elif count > 1:
                     # 같은 경로가 여러 번 나오면 배열로 처리
-                    # 현재까지 같은 경로가 몇 번 나왔는지 확인
-                    if path_key not in seen_paths:
-                        seen_paths[path_key] = 0
-                    else:
-                        seen_paths[path_key] += 1
-                    current_idx = seen_paths[path_key]
-                    
-                    # 가장 짧은 공통 접두사를 찾아서 그 위치에 배열 인덱스 추가
-                    # 범용적인 방법: 각 위치에서 같은 이름이 여러 번 나오는지 확인
-                    # 예: ["Page1", "KeepPageSeparate", "FamilyMember"]가 여러 번 나오면
-                    # "KeepPageSeparate"에 배열 인덱스 추가
-                    json_path = []
-                    array_idx_added = False
-                    
-                    # 범용적인 배열 인덱스 위치 찾기
-                    # 전략: 같은 경로가 여러 번 나올 때, 가장 짧은 공통 접두사를 찾아서
-                    # 그 위치에 배열 인덱스를 추가합니다.
-                    # 이는 다양한 PDF 구조에서도 작동합니다.
-                    for i, tag in enumerate(tail):
-                        # 이전 경로까지의 접두사
-                        prev_prefix = tuple(tail[:i])
-                        # 현재 태그를 포함한 접두사
-                        current_prefix = tuple(tail[:i+1])
-                        
-                        # 이전 접두사가 한 번만 나오고, 현재 접두사가 여러 번 나오면
-                        # 현재 태그에 배열 인덱스 추가 (가장 짧은 공통 접두사)
-                        # 이 로직은 다음과 같은 경우들을 처리합니다:
-                        # 1. ["Page1", "A", "B"]가 여러 번 → A[0], A[1]에 각각 B
-                        # 2. ["Page1", "A", "B", "C"]와 ["Page1", "A", "B", "D"] → A는 한 번, B는 여러 번이면 B에 인덱스
-                        prev_cnt = prefix_count.get(prev_prefix, 0)
-                        current_cnt = prefix_count.get(current_prefix, 0)
-                        
-                        if prev_cnt == 1 and current_cnt > 1 and not array_idx_added:
-                            # 현재 태그가 반복되는 첫 번째 위치
-                            json_path.append((tag, current_idx))
-                            array_idx_added = True
-                        elif i == len(tail) - 1 and not array_idx_added:
-                            # 마지막 태그이고 아직 배열 인덱스를 추가하지 않았으면
-                            # (전체 경로가 반복되는 경우 - fallback)
-                            json_path.append((tag, current_idx))
-                        else:
-                            json_path.append((tag, -1))
+                    # 공통 함수로 배열 인덱스 추가
+                    tail_tuple = tuple(tail)
+                    json_path = _build_path_with_array_indices(tail_tuple, path_count, prefix_count, seen_paths)
                 else:
                     # 단일 값으로 처리
                     json_path = [(t, -1) for t in tail]
@@ -512,16 +473,8 @@ def _collect_form_field_paths_from_pdf(pdf_path: Path) -> tuple[str | None, List
         logger.warning(f"form XML 파싱 실패: {e}")
         return None, []
 
-    # 기본 base_tag: 최상위 subform name (예: IMM_0800)
-    base_sub = None
-    base_tag = None
-    for sf in root.findall(".//{*}subform"):
-        name = sf.get("name")
-        if name:
-            base_sub = sf
-            base_tag = name
-            break
-
+    # 공통 함수로 base_tag 찾기
+    base_sub, base_tag = _find_base_tag_from_form_root(root)
     if base_sub is None or base_tag is None:
         return None, []
 
@@ -581,6 +534,82 @@ def extract_fields_from_pdf(pdf_path: Path) -> dict:
     
     return json_tpl
 
+
+# ============== 공통 유틸리티 함수 ==============
+def _find_base_tag_from_form_root(root: LET._Element) -> tuple[LET._Element | None, str | None]:
+    """
+    form.xml 루트에서 base_tag와 base_sub를 찾습니다.
+    
+    Returns:
+        (base_sub, base_tag) 또는 (None, None)
+    """
+    base_sub = None
+    base_tag = None
+    for sf in root.findall(".//{*}subform"):
+        name = sf.get("name")
+        if name:
+            base_sub = sf
+            base_tag = name
+            break
+    return base_sub, base_tag
+
+def _build_path_with_array_indices(
+    path_tuple: tuple,
+    path_count: Dict[tuple, int],
+    prefix_count: Dict[tuple, int],
+    seen_paths: Dict[tuple, int]
+) -> List[Tuple[str, int]]:
+    """
+    경로 튜플에 배열 인덱스를 추가하여 JSON 경로를 생성합니다.
+    
+    Args:
+        path_tuple: 경로 튜플 (예: ("Page1", "KeepPageSeparate", "FamilyMember"))
+        path_count: 경로별 출현 횟수
+        prefix_count: 접두사별 출현 횟수
+        seen_paths: 경로별 현재 인덱스 (수정됨)
+    
+    Returns:
+        JSON 경로 리스트 (예: [("Page1", -1), ("KeepPageSeparate", 0), ("FamilyMember", -1)])
+    """
+    count = path_count.get(path_tuple, 1)
+    
+    if count > 1:
+        # 같은 경로가 여러 번 나오면 배열로 처리
+        if path_tuple not in seen_paths:
+            seen_paths[path_tuple] = 0
+        else:
+            seen_paths[path_tuple] += 1
+        current_idx = seen_paths[path_tuple]
+        
+        json_path = []
+        array_idx_added = False
+        
+        for i, tag in enumerate(path_tuple):
+            # 이전 경로까지의 접두사
+            prev_prefix = tuple(path_tuple[:i])
+            # 현재 태그를 포함한 접두사
+            current_prefix = tuple(path_tuple[:i+1])
+            
+            # 이전 접두사가 한 번만 나오고, 현재 접두사가 여러 번 나오면
+            # 현재 태그에 배열 인덱스 추가 (가장 짧은 공통 접두사)
+            prev_cnt = prefix_count.get(prev_prefix, 0)
+            current_cnt = prefix_count.get(current_prefix, 0)
+            
+            if prev_cnt == 1 and current_cnt > 1 and not array_idx_added:
+                # 현재 태그가 반복되는 첫 번째 위치
+                json_path.append((tag, current_idx))
+                array_idx_added = True
+            elif i == len(path_tuple) - 1 and not array_idx_added:
+                # 마지막 태그이고 아직 배열 인덱스를 추가하지 않았으면
+                # (전체 경로가 반복되는 경우 - fallback)
+                json_path.append((tag, current_idx))
+            else:
+                json_path.append((tag, -1))
+    else:
+        # 단일 값으로 처리
+        json_path = [(tag, -1) for tag in path_tuple]
+    
+    return json_path
 
 # ============== form XML 읽기 ==============
 def _read_xfa_part_from_pdf(pdf_path: Path, part_name: str) -> bytes | None:
@@ -1067,16 +1096,8 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
         logger.warning(f"form XML 파싱 실패: {e}")
         return None, {}
 
-    # 기본 base_tag: 최상위 subform name (예: IMM_0800)
-    base_sub = None
-    base_tag = None
-    for sf in root.findall(".//{*}subform"):
-        name = sf.get("name")
-        if name:
-            base_sub = sf
-            base_tag = name
-            break
-
+    # 공통 함수로 base_tag 찾기
+    base_sub, base_tag = _find_base_tag_from_form_root(root)
     if base_sub is None or base_tag is None:
         return None, {}
 
@@ -1147,7 +1168,7 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
     def build_path_with_array_indices(path_segments: List[str], field_name: str) -> str:
         """
         경로에 배열 인덱스를 추가하여 full_json_path 생성
-        _build_field_template과 동일한 로직 사용
+        공통 함수를 사용하여 _build_field_template과 동일한 로직 사용
         """
         if not path_segments:
             return field_name
@@ -1155,45 +1176,16 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
         # base_tag 제거하고 경로 튜플 생성
         path_tuple = tuple(path_segments[1:] + [field_name]) if len(path_segments) > 1 else (field_name,)
         
-        # 같은 경로가 여러 번 나오는지 확인
-        if path_tuple not in seen_paths:
-            seen_paths[path_tuple] = 0
-        else:
-            seen_paths[path_tuple] += 1
-        current_idx = seen_paths[path_tuple]
+        # 공통 함수로 배열 인덱스 추가
+        json_path = _build_path_with_array_indices(path_tuple, path_count, prefix_count, seen_paths)
         
-        # _build_field_template과 동일한 로직 사용
-        count = path_count.get(path_tuple, 1)
-        
-        if count > 1:
-            # 같은 경로가 여러 번 나오면 배열로 처리
-            path_with_indices = []
-            array_idx_added = False
-            
-            for i, tag in enumerate(path_tuple):
-                # 이전 경로까지의 접두사
-                prev_prefix = tuple(path_tuple[:i])
-                # 현재 태그를 포함한 접두사
-                current_prefix = tuple(path_tuple[:i+1])
-                
-                # 이전 접두사가 한 번만 나오고, 현재 접두사가 여러 번 나오면
-                # 현재 태그에 배열 인덱스 추가 (가장 짧은 공통 접두사)
-                prev_cnt = prefix_count.get(prev_prefix, 0)
-                current_cnt = prefix_count.get(current_prefix, 0)
-                
-                if prev_cnt == 1 and current_cnt > 1 and not array_idx_added:
-                    # 현재 태그가 반복되는 첫 번째 위치
-                    path_with_indices.append(f"{tag}[{current_idx}]")
-                    array_idx_added = True
-                elif i == len(path_tuple) - 1 and not array_idx_added:
-                    # 마지막 태그이고 아직 배열 인덱스를 추가하지 않았으면
-                    # (전체 경로가 반복되는 경우 - fallback)
-                    path_with_indices.append(f"{tag}[{current_idx}]")
-                else:
-                    path_with_indices.append(tag)
-        else:
-            # 단일 값으로 처리
-            path_with_indices = list(path_tuple)
+        # JSON 경로를 문자열로 변환
+        path_with_indices = []
+        for tag, idx in json_path:
+            if idx >= 0:
+                path_with_indices.append(f"{tag}[{idx}]")
+            else:
+                path_with_indices.append(tag)
         
         return f"{base_tag}." + ".".join(path_with_indices)
 

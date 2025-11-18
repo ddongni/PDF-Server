@@ -213,6 +213,45 @@ def parse_ui_and_format(field_el: etree._Element) -> Tuple[str, Optional[str]]:
     # 알 수 없는 UI 타입은 raw 이름으로
     return local, fmt
 
+# ---------- 공통 유틸리티 함수 ----------
+
+def _save_field_type_entry(
+    entry: Dict[str, Any],
+    field_path: str,
+    result_by_path: Dict[str, Dict],
+    result_by_json_path: Dict[str, Dict]
+) -> None:
+    """
+    필드 타입 정보를 경로별, JSON 경로별로 저장하는 공통 함수.
+    
+    Args:
+        entry: 저장할 타입 정보 딕셔너리 (xpath는 이미 설정되어 있어야 함)
+        field_path: 슬래시로 구분된 경로 (예: "Page1/ContactInformation/TelephoneNo")
+        result_by_path: 경로별 타입 정보 딕셔너리 (수정됨)
+        result_by_json_path: JSON 경로별 타입 정보 딕셔너리 (수정됨)
+    """
+    if not field_path:
+        return
+    
+    # 경로별 저장
+    result_by_path[field_path] = entry.copy()
+    
+    # JSON 경로 형식으로도 저장 (슬래시를 점으로 변환)
+    json_path = field_path.replace("/", ".")
+    result_by_json_path[json_path] = entry.copy()
+
+def _clean_empty_formats(*result_dicts: Dict[str, Dict]) -> None:
+    """
+    여러 딕셔너리에서 format이 비어있는 경우 제거하는 공통 함수.
+    
+    Args:
+        *result_dicts: 정리할 딕셔너리들
+    """
+    for result_dict in result_dicts:
+        for k, v in list(result_dict.items()):
+            if "format" in v and not v["format"]:
+                v.pop("format", None)
+
 # ---------- template.xml에서 필드 경로 추출 ----------
 
 def _get_template_field_path(field_elem: etree._Element, root: etree._Element) -> str:
@@ -265,15 +304,13 @@ def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Di
             if value_map:
                 entry["value_map"] = value_map.copy()
             
-            # 경로 기반 저장
+            # 경로 기반 저장 (공통 함수 사용)
             grp_path = _get_template_field_path(grp, root)
             if grp_path:
                 # xpath 추가
                 entry["xpath"] = _get_template_field_xpath(grp, root)
-                result_by_path[grp_path] = entry.copy()
-                # JSON 경로 형식으로도 저장 (슬래시를 점으로 변환)
-                json_path = grp_path.replace("/", ".")
-                result_by_json_path[json_path] = entry.copy()
+                # 공통 함수로 저장
+                _save_field_type_entry(entry, grp_path, result_by_path, result_by_json_path)
             
             # 이름 기반 저장은 제거 (경로 기반만 사용하여 옵션 섞임 방지)
             # 같은 이름의 필드가 여러 곳에 있을 수 있으므로 경로 기반으로만 저장
@@ -308,28 +345,19 @@ def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Di
                 if opts:
                     entry["options"] = opts.copy()
             
-            # 경로 기반 저장 (항상 저장, 더 정확함)
+            # 경로 기반 저장 (항상 저장, 더 정확함) - 공통 함수 사용
             if field_path:
                 # xpath 추가
                 entry["xpath"] = _get_template_field_xpath(fld, root)
-                result_by_path[field_path] = entry.copy()
-                # JSON 경로 형식으로도 저장 (슬래시를 점으로 변환)
-                json_path = field_path.replace("/", ".")
-                result_by_json_path[json_path] = entry.copy()
+                # 공통 함수로 저장
+                _save_field_type_entry(entry, field_path, result_by_path, result_by_json_path)
             
             # 이름 기반 저장은 제거 (경로 기반만 사용하여 옵션 섞임 방지)
             # 같은 이름의 필드가 여러 곳에 있을 수 있으므로 경로 기반으로만 저장
     
     # 3) format이 text/num 마스크에서 제거되어 아무 것도 없는 경우는 아예 키를 빼줘도 괜찮음
-    for k, v in list(result_by_path.items()):
-        if "format" in v and not v["format"]:
-            v.pop("format", None)
-    for k, v in list(result_by_name.items()):
-        if "format" in v and not v["format"]:
-            v.pop("format", None)
-    for k, v in list(result_by_json_path.items()):
-        if "format" in v and not v["format"]:
-            v.pop("format", None)
+    # 공통 함수로 정리
+    _clean_empty_formats(result_by_path, result_by_name, result_by_json_path)
     
     return result_by_path, result_by_name, result_by_json_path
 
