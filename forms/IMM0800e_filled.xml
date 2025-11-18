@@ -1,0 +1,894 @@
+<form checksum="fXNEGsf/OjObaXr32TBrpbWr4s0=" xmlns="http://www.xfa.org/schema/xfa-form/2.8/"
+><subform name="IMM_0800"
+><instanceManager name="_Page1"
+/><subform name="Page1"
+><instanceManager name="_ApplyFor"
+/><subform name="ApplyFor"
+><field name="CheckBox2"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_ApplyFrom"
+/><subform name="ApplyFrom"
+><exclGroup name="ApplyFromOpt"
+><field name="OutsideCanada"
+><value override="1"
+><text
+>1</text
+></value
+></field
+><field name="InsideCanada"
+><value override="1"
+/></field
+></exclGroup
+><instanceManager name="_Relationship"
+/><subform name="Relationship"
+><field name="Family"
+><value override="1"
+/></field
+><field name="Name"
+><value override="1"
+/></field
+><field name="DOB"
+><value override="1"
+/></field
+><field name="Relationship"
+><value override="1"
+/></field
+></subform
+></subform
+><instanceManager name="_Minor"
+/><subform name="Minor"
+><exclGroup name="MinorOpt"
+><field name="No"
+><value override="1"
+><text
+>1</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><instanceManager name="_PersonalDetails"
+/><subform name="PersonalDetails"
+><instanceManager name="_Name"
+/><subform name="Name"
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="GivenName"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_AliasName"
+/><subform name="AliasName"
+><exclGroup name="AliasNameIndicator"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="AliasFamilyName"
+><value override="1"
+/></field
+><field name="AliasGivenName"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_Gender"
+/><subform name="Gender"
+><exclGroup name="RadioButtonList"
+><field name="Female"
+><value override="1"
+/></field
+><field name="Male"
+><value override="1"
+><text
+>2</text
+></value
+></field
+><field name="AnotherGender"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><field name="DOB"
+><value override="1"
+/></field
+><instanceManager name="_PlaceBirth"
+/><subform name="PlaceBirth"
+><field name="PlaceBirthCity"
+><value override="1"
+/></field
+><field name="PlaceBirthCountry"
+><value override="1"
+/></field
+></subform
+></subform
+><instanceManager name="_MaritalStatus"
+/><subform name="MaritalStatus"
+><instanceManager name="_Q10a"
+/><subform name="Q10a"
+><exclGroup name="RadioButtonList"
+><field name="Single"
+><value override="1"
+/></field
+><field name="Married"
+><value override="1"
+><text
+>2</text
+></value
+></field
+><field name="Common-law"
+><value override="1"
+/></field
+><field name="Separated"
+><value override="1"
+/></field
+><field name="Divorced"
+><value override="1"
+/></field
+><field name="Widowed"
+><value override="1"
+/></field
+><field name="Other"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><instanceManager name="_Q10b"
+/><subform name="Q10b"
+><field name="Date"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_NameSpouse"
+/><subform name="NameSpouse"
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="GivenName"
+><value override="1"
+/></field
+></subform
+></subform
+><instanceManager name="_Language"
+/><subform name="Language"
+><exclGroup name="language"
+><field name="English"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="French"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><instanceManager name="_Identification"
+/><subform name="Identification"
+><field name="CheckBox1"
+><value override="1"
+/></field
+><field name="CheckBox2"
+><value override="1"
+/></field
+><exclGroup name="Photo"
+><field name="Yes"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+></exclGroup
+><field name="Q3"
+><value override="1"
+/></field
+><field name="Q4"
+><value override="1"
+/></field
+><field name="IssuetDate"
+><value override="1"
+/></field
+><field name="ExpirytDate"
+><value override="1"
+/></field
+><field name="Q7"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_DocumentCitizenship"
+/><subform name="DocumentCitizenship"
+><field name="Q1"
+><value override="1"
+/></field
+><field name="Q2"
+><value override="1"
+/></field
+><field name="IssuetDate"
+><value override="1"
+/></field
+><field name="ExpirytDate"
+><value override="1"
+/></field
+><field name="Q5"
+><value override="1"
+/></field
+><field name="Q6"
+><value override="1"
+/></field
+><field name="Q7"
+><value override="1"
+/></field
+><field name="DOB"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_PhotoProof"
+/><subform name="PhotoProof"
+><field name="Q1"
+><value override="1"
+/></field
+><field name="Q2"
+><value override="1"
+/></field
+><field name="IssuetDate"
+><value override="1"
+/></field
+><field name="ExpirytDate"
+><value override="1"
+/></field
+><field name="Q5"
+><value override="1"
+/></field
+><field name="Q6"
+><value override="1"
+/></field
+><field name="Q7"
+><value override="1"
+/></field
+><field name="DOB"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_ContactInformation"
+/><subform name="ContactInformation"
+><instanceManager name="_Information"
+/><subform name="Information"
+><instanceManager name="_MailingAddress"
+/><subform name="MailingAddress"
+><field name="POBox"
+><value override="1"
+/></field
+><field name="AptUnit"
+><value override="1"
+/></field
+><field name="StreetNum"
+><value override="1"
+/></field
+><field name="Streetname"
+><value override="1"
+/></field
+><field name="CityTown"
+><value override="1"
+/></field
+><field name="ProvinceState"
+><value override="1"
+/></field
+><field name="Country"
+><value override="1"
+/></field
+><field name="PostalCode"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_ResidentialAddress"
+/><subform name="ResidentialAddress"
+><exclGroup name="SameAsMailingIndicator"
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+><field name="No"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+></exclGroup
+><field name="POBox"
+><value override="1"
+/></field
+><field name="AptUnit"
+><value override="1"
+/></field
+><field name="StreetNum"
+><value override="1"
+/></field
+><field name="Streetname"
+><value override="1"
+/></field
+><field name="CityTown"
+><value override="1"
+/></field
+><field name="ProvinceState"
+><value override="1"
+/></field
+><field name="Country"
+><value override="1"
+/></field
+><field name="PostalCode"
+><value override="1"
+/></field
+></subform
+><field name="TelephoneNo"
+><value override="1"
+><text maxChars="10"
+>1234567890</text
+></value
+></field
+><field name="POBox"
+><value override="1"
+/></field
+><field name="POBox"
+><value override="1"
+/></field
+></subform
+></subform
+><instanceManager name="_Relationship"
+/><subform name="Relationship"
+><instanceManager name="_FullName"
+/><subform name="FullName"
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="GivenName"
+><value override="1"
+/></field
+><field name="Q2"
+><value override="1"
+/></field
+><field name="DOB"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_ResidentialAddress"
+/><subform name="ResidentialAddress"
+><field name="Streetname"
+><value override="1"
+/></field
+><field name="CityTown"
+><value override="1"
+/></field
+><field name="ProvinceState"
+><value override="1"
+/></field
+><field name="PostalCode"
+><value override="1"
+/></field
+></subform
+><field name="TelephoneNo"
+><value override="1"
+><text maxChars="10"
+>1234567890</text
+></value
+></field
+><field name="Q5"
+><value override="1"
+/></field
+><field name="Q6"
+><value override="1"
+/></field
+><exclGroup name="proofRelationship"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+><exclGroup name="proofResidence"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+><exclGroup name="noProof"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><instanceManager name="_Background"
+/><subform name="Background"
+><exclGroup name="OptionsQ1"
+><field name="No"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><instanceManager name="_Table1"
+/><subform name="Table1"
+><instanceManager name="_Row1"
+/><subform name="Row1"
+><field name="Cell1"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_Row2"
+/><subform name="Row2"
+><field name="Cell1"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_Row3"
+/><subform name="Row3"
+><field name="Cell1"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+></subform
+></subform
+><exclGroup name="OptionsQ2"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="ifYesQ2"
+><value override="1"
+/></field
+><exclGroup name="OptionsQ3"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="ifYesQ3"
+><value override="1"
+/></field
+><exclGroup name="OptionsQ4"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+></exclGroup
+><exclGroup name="OptionsQ5"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+></subform
+><instanceManager name="_TRdocuments"
+/><subform name="TRdocuments"
+><exclGroup name="OptionsQ1"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><exclGroup name="OptionsQ1"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="SchoolName"
+><value override="1"
+/></field
+><field name="StudyLevel"
+><value override="1"
+/></field
+><field name="StudyField"
+><value override="1"
+/></field
+><exclGroup name="OptionsQ3"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="currentDate"
+><value override="1"
+/></field
+><field name="SchoolName"
+><value override="1"
+/></field
+><exclGroup name="RadioButtonList"
+><field name="Visit"
+><value override="1"
+><text
+>1</text
+></value
+></field
+><field name="Study"
+><value override="1"
+/></field
+><field name="Work"
+><value override="1"
+/></field
+><field name="Other"
+><value override="1"
+/></field
+></exclGroup
+><field name="SchoolName"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_KeepPageSeparate"
+/><subform name="KeepPageSeparate"
+><instanceManager name="_FamilyMember"
+/><subform name="FamilyMember"
+><field name="FamilyMember"
+><value override="1"
+/></field
+><exclGroup name="RadioButtonList"
+><field name="Yes"
+><value override="1"
+/></field
+><field name="No"
+><value override="1"
+><text
+>2</text
+></value
+></field
+></exclGroup
+><instanceManager name="_Name"
+/><subform name="Name"
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="GivenName"
+><value override="1"
+/></field
+></subform
+><field name="DOB"
+><value override="1"
+/></field
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="FamilyName"
+><value override="1"
+/></field
+><instanceManager name="_MailingAddress"
+/><subform name="MailingAddress"
+><field name="POBox"
+><value override="1"
+/></field
+><field name="AptUnit"
+><value override="1"
+/></field
+><field name="StreetNum"
+><value override="1"
+/></field
+><field name="Streetname"
+><value override="1"
+/></field
+><field name="CityTown"
+><value override="1"
+/></field
+><field name="Country"
+><value override="1"
+/></field
+><field name="ProvinceState"
+><value override="1"
+/></field
+><field name="PostalCode"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_Q7"
+/><subform name="Q7"
+><field name="CheckBox5"
+><value override="1"
+/></field
+><field name="SchoolName"
+><value override="1"
+/></field
+><field name="StudyLevel"
+><value override="1"
+/></field
+><field name="StudyField"
+><value override="1"
+/></field
+><field name="StudyLength"
+><value override="1"
+/></field
+></subform
+><instanceManager name="_Q8"
+/><subform name="Q8"
+><field name="GivenName"
+><value override="1"
+/></field
+><field name="FamilyName"
+><value override="1"
+/></field
+></subform
+><field name="GivenName"
+><value override="1"
+/></field
+><field name="FamilyName"
+><value override="1"
+/></field
+><field name="IssuetDate"
+><value override="1"
+/></field
+><field name="ExpirytDate"
+><value override="1"
+/></field
+><instanceManager name="_Gender"
+/><subform name="Gender"
+><exclGroup name="RadioButtonList"
+><field name="Female"
+><value override="1"
+><text
+>1</text
+></value
+></field
+><field name="Male"
+><value override="1"
+/></field
+><field name="AnotherGender"
+><value override="1"
+/></field
+></exclGroup
+></subform
+></subform
+></subform
+><instanceManager name="_KeepPageSeparate"
+/><subform name="KeepPageSeparate"
+><instanceManager name="_FamilyMember"
+/><subform name="FamilyMember"
+><field name="BackgroundFamilyMember"
+><value override="1"
+/></field
+><field name="FamilyMember"
+><value override="1"
+/></field
+><field name="FamilyMember"
+><value override="1"
+/></field
+><exclGroup name="RadioButtonList"
+><field name="No"
+><value override="1"
+><text
+>2</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+><instanceManager name="_Table1"
+/><subform name="Table1"
+><instanceManager name="_Row1"
+/><subform name="Row1"
+><field name="Cell1"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+><field name="Cell2"
+><value override="1"
+/></field
+></subform
+></subform
+><exclGroup name="OptionsQ2"
+><field name="No"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="ifYesQ2"
+><value override="1"
+/></field
+><exclGroup name="OptionsQ2"
+><field name="No"
+><value override="1"
+><text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"
+/></value
+></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><field name="ifYesQ2"
+><value override="1"
+/></field
+><exclGroup name="OptionsQ4"
+><field name="No"
+><value override="1"
+><text
+>N</text
+></value
+></field
+><field name="Yes"
+><value override="1"
+/></field
+></exclGroup
+><exclGroup name="OptionsQ5"
+><field name="No"
+><value override="1"
+/></field
+><field name="Yes"
+><value override="1"
+><text
+>Y</text
+></value
+></field
+></exclGroup
+><instanceManager name="_"
+/><subform
+><field name="BackgroundFamilyMember"
+/></subform
+><field name="Name"
+><value override="1"
+/></field
+><field name="SignatureFamilyMemberDate"
+><value override="1"
+/></field
+></subform
+></subform
+><instanceManager name="_KeepPageSeparate"
+/><subform name="KeepPageSeparate"
+><exclGroup name="RadioButtonList"
+><field name="Yes"
+><value override="1"
+><text
+>1</text
+></value
+></field
+><field name="No"
+><value override="1"
+/></field
+></exclGroup
+><field name="SignatureDate"
+><value override="1"
+/></field
+></subform
+></subform
+><pageSet name="Master"
+><pageArea name="frontPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+><pageArea name="overflowPage"
+><field name="num"
+/><field name="totPage"
+/><field name="FormNumber"
+/></pageArea
+></pageSet
+></subform
+></form
+>
