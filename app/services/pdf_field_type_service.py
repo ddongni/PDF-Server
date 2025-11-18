@@ -139,20 +139,51 @@ def caption_text(node: etree._Element) -> Optional[str]:
             return t.text.strip()
     return None
 
-def collect_radio_options_from_group(grp: etree._Element) -> List[str]:
+def collect_radio_options_from_group(grp: etree._Element) -> Tuple[List[str], Dict[str, str]]:
+    """
+    exclGroup에서 라디오 버튼 옵션을 수집합니다.
+    
+    Returns:
+        (옵션 리스트, 옵션 이름 -> 실제 값 매핑)
+        예: (["Yes", "No"], {"Yes": "Y", "No": "N"})
+    """
     opts = []
+    value_map: Dict[str, str] = {}  # 옵션 이름 -> 실제 값 매핑
+    
     # exclGroup 아래의 개별 field들의 caption/이름을 옵션으로 사용
     for rf in grp.findall(f".//{NSWILD}field"):
+        # 표시 텍스트 (caption 또는 name)
         label = caption_text(rf) or rf.get("name")
+        if not label:
+            continue
+        
+        label = label.strip()
+        
+        # 실제 값 파싱: <value><text>...</text></value>
+        actual_value = None
+        value_elem = rf.find(f".//{NSWILD}value/{NSWILD}text")
+        if value_elem is not None and value_elem.text:
+            actual_value = value_elem.text.strip()
+        
+        # value가 없으면 name을 값으로 사용
+        if not actual_value:
+            actual_value = rf.get("name", "").strip()
+        
+        # 옵션 추가
         if label:
-            opts.append(label.strip())
+            opts.append(label)
+            # 실제 값이 있고 표시 텍스트와 다르면 매핑에 추가
+            if actual_value and actual_value != label:
+                value_map[label] = actual_value
     
+    # 중복 제거 + 순서 유지
     seen, out = set(), []
     for x in opts:
         if x not in seen:
             seen.add(x)
             out.append(x)
-    return out
+    
+    return out, value_map
 
 def parse_ui_and_format(field_el: etree._Element) -> Tuple[str, Optional[str]]:
     ui_child = field_el.find(f".//{NSWILD}ui/*")
@@ -196,6 +227,13 @@ def _get_template_field_path(field_elem: etree._Element, root: etree._Element) -
     path_parts.reverse()
     return "/".join(path_parts) if path_parts else ""
 
+def _get_template_field_xpath(field_elem: etree._Element, root: etree._Element) -> str:
+    """template.xml에서 필드의 XFA 경로를 반환합니다 (./로 시작)."""
+    path = _get_template_field_path(field_elem, root)
+    if path:
+        return f"./{path}"
+    return ""
+
 # ---------- 메인 파서: type / options / format 수집 ----------
 
 def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Dict], Dict[str, Dict]]:
@@ -217,15 +255,21 @@ def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Di
             if not gname:
                 continue
             
-            opts = collect_radio_options_from_group(grp)
+            opts, value_map = collect_radio_options_from_group(grp)
             entry: Dict[str, object] = {"type": "radio"}
             
             if opts:
                 entry["options"] = opts.copy()
             
+            # 옵션 이름 -> 실제 값 매핑 추가
+            if value_map:
+                entry["value_map"] = value_map.copy()
+            
             # 경로 기반 저장
             grp_path = _get_template_field_path(grp, root)
             if grp_path:
+                # xpath 추가
+                entry["xpath"] = _get_template_field_xpath(grp, root)
                 result_by_path[grp_path] = entry.copy()
                 # JSON 경로 형식으로도 저장 (슬래시를 점으로 변환)
                 json_path = grp_path.replace("/", ".")
@@ -266,6 +310,8 @@ def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Di
             
             # 경로 기반 저장 (항상 저장, 더 정확함)
             if field_path:
+                # xpath 추가
+                entry["xpath"] = _get_template_field_xpath(fld, root)
                 result_by_path[field_path] = entry.copy()
                 # JSON 경로 형식으로도 저장 (슬래시를 점으로 변환)
                 json_path = field_path.replace("/", ".")
@@ -407,26 +453,31 @@ def extract_field_types_with_path_map(pdf_path: Path) -> Tuple[dict, Dict[str, D
                         walk_template_and_set_types(value, target_obj[key], new_path)
                 elif isinstance(value, list):
                     if isinstance(target_obj[key], list):
-                        for i, item in enumerate(value):
-                            if i >= len(target_obj[key]):
-                                break
-                            # 배열 인덱스는 경로에 포함하지 않고, 타입 정보 조회 시에만 사용
-                            # 배열 인덱스를 제거한 경로로 타입 정보를 조회
+                        # 배열 필드의 경우, 첫 번째 요소로 타입 정보를 조회하고
+                        # 배열 인덱스 없이도 타입 정보를 저장
+                        if value:
                             item_path_without_index = new_path.copy()
                             item_full_path = f"{base_tag}.{'.'.join(item_path_without_index)}"
-                            if isinstance(item, (dict, list)):
-                                if isinstance(target_obj[key][i], (dict, list)):
-                                    # 배열 인덱스를 경로에 포함하지 않고 재귀 호출
-                                    walk_template_and_set_types(item, target_obj[key][i], new_path)
-                            else:
-                                # 리프 노드: 타입 정보 설정 및 값 교체
-                                type_info = _get_type_info_for_path(item_full_path, field_type_map_by_json_path, field_type_map_by_path, field_type_map_by_name, key)
-                                # 배열 인덱스를 포함한 경로로 저장 (원본 경로 유지)
+                            # 배열 필드 자체의 타입 정보 조회 (인덱스 없이)
+                            type_info_for_array = _get_type_info_for_path(item_full_path, field_type_map_by_json_path, field_type_map_by_path, field_type_map_by_name, key)
+                            # 배열 인덱스 없는 경로로도 타입 정보 저장
+                            json_path_type_map[item_full_path] = type_info_for_array
+                            
+                            for i, item in enumerate(value):
+                                if i >= len(target_obj[key]):
+                                    break
+                                # 배열 인덱스를 포함한 경로로도 타입 정보 저장
                                 item_path_with_index = new_path + [f"[{i}]"]
                                 item_full_path_with_index = f"{base_tag}.{'.'.join(item_path_with_index)}"
-                                json_path_type_map[item_full_path_with_index] = type_info
-                                # target_obj에서 직접 값 교체
-                                target_obj[key][i] = type_info
+                                json_path_type_map[item_full_path_with_index] = type_info_for_array
+                                
+                                if isinstance(item, (dict, list)):
+                                    if isinstance(target_obj[key][i], (dict, list)):
+                                        # 배열 인덱스를 경로에 포함하지 않고 재귀 호출
+                                        walk_template_and_set_types(item, target_obj[key][i], new_path)
+                                else:
+                                    # 리프 노드: 타입 정보 설정 및 값 교체
+                                    target_obj[key][i] = type_info_for_array
                 else:
                     # 리프 노드 (필드): 타입 정보 설정 및 값 교체
                     type_info = _get_type_info_for_path(full_json_path, field_type_map_by_json_path, field_type_map_by_path, field_type_map_by_name, key)

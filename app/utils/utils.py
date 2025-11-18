@@ -138,6 +138,43 @@ def set_node(form: etree._Element, xpath: str, val: str):
 						if not children:
 							# 태그 이름으로 찾지 못하면 name 속성으로 찾기 (subform, exclGroup 등)
 							children = [c for c in cur if c.get("name") == part]
+						if not children:
+							# 라디오 버튼 옵션의 경우: exclGroup 내부의 field를 찾기
+							# 마지막 부분이 옵션 이름일 수 있음 (예: Male, Female 등)
+							if part and cur is not None:
+								# 현재 노드가 exclGroup이거나, 자식 중에 exclGroup이 있는지 확인
+								excl_groups = []
+								if strip_ns(cur.tag) == "exclGroup":
+									excl_groups = [cur]
+								else:
+									excl_groups = [c for c in cur if strip_ns(c.tag) == "exclGroup"]
+									# name 속성으로도 찾기
+									if not excl_groups:
+										parent_name = part.split("/")[0] if "/" in part else part
+										excl_groups = [c for c in cur if c.get("name") == parent_name]
+								
+								# exclGroup 내부의 field들을 확인
+								for excl_group in excl_groups:
+									for field in excl_group.findall(".//{*}field"):
+										field_name = field.get("name")
+										# name 속성으로 매칭
+										if field_name == part:
+											children = [field]
+											break
+										# caption의 text로도 매칭 시도
+										caption_text_elem = field.find(".//{*}caption//{*}value//{*}text")
+										if caption_text_elem is not None and caption_text_elem.text:
+											if caption_text_elem.text.strip() == part:
+												children = [field]
+												break
+										# caption의 직접 text도 확인
+										caption_direct_text = field.find(".//{*}caption//{*}text")
+										if caption_direct_text is not None and caption_direct_text.text:
+											if caption_direct_text.text.strip() == part:
+												children = [field]
+												break
+									if children:
+										break
 						if children:
 							cur = children[0]
 						else:

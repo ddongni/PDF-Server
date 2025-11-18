@@ -64,7 +64,7 @@ async def fill_pdf_endpoint(
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     # 서비스를 통해 PDF 채우기
-    return await fill_pdf_with_data(
+    return fill_pdf_with_data(
         request.filename,
         request.fields,
         background_tasks

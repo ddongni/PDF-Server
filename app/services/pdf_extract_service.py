@@ -764,28 +764,72 @@ def extract_field_values(pdf_path: Path) -> dict:
         
         # 값이 없는 경우에도 추출 시도 (빈 문자열로라도)
         
-        # 라디오 버튼 필드의 경우, 값이 옵션 목록에 있는지 확인
+        # 라디오 버튼 필드의 경우, 템플릿의 값 매핑을 사용하여 변환
+        # 배열 인덱스를 제거한 경로로 타입 정보 조회
         clean_json_path = re.sub(r'\[\d+\]', '', json_path)
-        field_type_info = json_path_type_map.get(clean_json_path) or json_path_type_map.get(json_path)
+        # base_tag를 제거한 경로로도 시도
+        clean_json_path_without_base = clean_json_path
+        if clean_json_path.startswith(f"{base_tag}."):
+            clean_json_path_without_base = clean_json_path[len(base_tag) + 1:]
+        
+        # 여러 경로로 타입 정보 조회 시도
+        field_type_info = (
+            json_path_type_map.get(clean_json_path) or
+            json_path_type_map.get(json_path) or
+            json_path_type_map.get(clean_json_path_without_base)
+        )
         
         if field_type_info and field_type_info.get("type") == "radio":
             options = field_type_info.get("options", [])
-            # 값이 옵션 목록에 없으면 변환 시도
-            if options and v and v not in options:
-                # 일반적인 값 변환: "Y" -> "Yes", "N" -> "No"
-                value_map = {"Y": "Yes", "N": "No", "1": "Yes", "0": "No"}
-                if v in value_map and value_map[v] in options:
+            value_map = field_type_info.get("value_map", {})  # 템플릿에서 파싱한 값 매핑
+            
+            if options and v:
+                # 1. 값이 옵션 이름이면 실제 값으로 변환 (예: "Yes" -> "Y")
+                if v in value_map:
                     v = value_map[v]
+                # 2. 값이 옵션 목록에 있지만 value_map에 없으면 그대로 사용 (옵션 이름 = 실제 값)
+                elif v in options:
+                    # 옵션 이름이 실제 값과 동일한 경우이므로 그대로 사용
+                    pass
+                # 3. 값이 옵션 목록에 없으면 변환 시도
                 else:
-                    # 숫자 인덱스로 변환 시도
-                    try:
-                        idx = int(v)
-                        if 0 <= idx < len(options):
-                            v = options[idx]  # 인덱스를 옵션 이름으로 변환
-                        elif 1 <= idx <= len(options):
-                            v = options[idx - 1]  # 1-based 인덱스
-                    except (ValueError, TypeError):
-                        pass
+                    # 역매핑 시도: 실제 값 -> 옵션 이름
+                    reverse_map = {val: key for key, val in value_map.items()}
+                    if v in reverse_map:
+                        # 실제 값이 옵션 이름으로 변환되면, 다시 실제 값으로 변환
+                        option_name = reverse_map[v]
+                        if option_name in value_map:
+                            v = value_map[option_name]
+                    else:
+                        # 일반적인 값 변환: "Y" -> "Yes", "N" -> "No" (fallback)
+                        fallback_map = {"Y": "Yes", "N": "No", "1": "Yes", "0": "No"}
+                        if v in fallback_map and fallback_map[v] in options:
+                            option_name = fallback_map[v]
+                            # 템플릿의 value_map이 있으면 실제 값으로 변환
+                            if option_name in value_map:
+                                v = value_map[option_name]
+                            else:
+                                v = option_name
+                        else:
+                            # 숫자 인덱스로 변환 시도
+                            try:
+                                idx = int(v)
+                                if 0 <= idx < len(options):
+                                    option_name = options[idx]
+                                    # 템플릿의 value_map이 있으면 실제 값으로 변환
+                                    if option_name in value_map:
+                                        v = value_map[option_name]
+                                    else:
+                                        v = option_name
+                                elif 1 <= idx <= len(options):
+                                    option_name = options[idx - 1]
+                                    # 템플릿의 value_map이 있으면 실제 값으로 변환
+                                    if option_name in value_map:
+                                        v = value_map[option_name]
+                                    else:
+                                        v = option_name
+                            except (ValueError, TypeError):
+                                pass
         
         # preserve_structure=True로 설정하여 템플릿에 있는 필드에만 값을 설정
         # 필드 키 추출과 동일한 키 집합을 유지하기 위해 템플릿 구조만 사용
@@ -849,11 +893,58 @@ def extract_field_values(pdf_path: Path) -> dict:
                 # 값이 없는 경우: datasets.xml의 값을 유지하기 위해 스킵 (덮어쓰지 않음)
                 if not vals:
                     continue
+                
+                # 라디오 버튼 필드의 경우, 템플릿의 값 매핑을 사용하여 변환
+                # 배열 인덱스를 제거한 경로로 타입 정보 조회
+                clean_json_path = re.sub(r'\[\d+\]', '', full_json_path)
+                # base_tag를 제거한 경로로도 시도
+                clean_json_path_without_base = clean_json_path
+                if clean_json_path.startswith(f"{base_tag}."):
+                    clean_json_path_without_base = clean_json_path[len(base_tag) + 1:]
+                
+                # 여러 경로로 타입 정보 조회 시도
+                field_type_info = (
+                    json_path_type_map.get(clean_json_path) or
+                    json_path_type_map.get(full_json_path) or
+                    json_path_type_map.get(clean_json_path_without_base)
+                )
+                
+                # 값 변환 함수
+                def convert_radio_value(val: str, type_info: Dict[str, Any]) -> str:
+                    """라디오 버튼 값을 템플릿의 값 매핑을 사용하여 변환"""
+                    if not type_info or type_info.get("type") != "radio":
+                        return val
+                    
+                    options = type_info.get("options", [])
+                    value_map = type_info.get("value_map", {})
+                    
+                    if not options or not val:
+                        return val
+                    
+                    # 1. 값이 옵션 이름이면 실제 값으로 변환 (예: "Yes" -> "Y")
+                    if val in value_map:
+                        return value_map[val]
+                    # 2. 값이 옵션 목록에 있지만 value_map에 없으면 그대로 사용
+                    elif val in options:
+                        return val
+                    # 3. 값이 옵션 목록에 없으면 변환 시도
+                    else:
+                        # 역매핑 시도: 실제 값 -> 옵션 이름
+                        reverse_map = {v: k for k, v in value_map.items()}
+                        if val in reverse_map:
+                            option_name = reverse_map[val]
+                            if option_name in value_map:
+                                return value_map[option_name]
+                            return option_name
+                        return val
+                
                 # 값이 1개일 때
-                elif len(vals) == 1:
+                if len(vals) == 1:
+                    # 라디오 버튼 값 변환
+                    converted_val = convert_radio_value(vals[0], field_type_info)
                     # preserve_structure=True로 설정하여 템플릿에 있는 필드에만 값을 설정
                     # 필드 키 추출과 동일한 키 집합을 유지하기 위해 템플릿 구조만 사용
-                    success = _set_value_in_nested(json_tpl[base_tag], json_path, vals[0], preserve_structure=True)
+                    success = _set_value_in_nested(json_tpl[base_tag], json_path, converted_val, preserve_structure=True)
                     if success:
                         form_merge_count += 1
                     else:
@@ -885,19 +976,25 @@ def extract_field_values(pdf_path: Path) -> dict:
                                 # 템플릿에 배열이 있으면 각 인덱스에 값 설정 (템플릿 크기 유지)
                                 for idx, v in enumerate(vals):
                                     if idx < len(prefix_obj[last_tag]):
+                                        # 라디오 버튼 값 변환
+                                        converted_val = convert_radio_value(v, field_type_info)
                                         current_path = prefix_path + [(last_tag, idx)]
-                                        _set_value_in_nested(json_tpl[base_tag], current_path, v, preserve_structure=True)
+                                        _set_value_in_nested(json_tpl[base_tag], current_path, converted_val, preserve_structure=True)
                                 form_merge_count += 1
                             else:
                                 # 템플릿에 배열이 없으면 단일 값으로 처리 (첫 번째 값만 사용)
-                                success = _set_value_in_nested(json_tpl[base_tag], json_path, vals[0], preserve_structure=True)
+                                # 라디오 버튼 값 변환
+                                converted_val = convert_radio_value(vals[0], field_type_info)
+                                success = _set_value_in_nested(json_tpl[base_tag], json_path, converted_val, preserve_structure=True)
                                 if success:
                                     form_merge_count += 1
                                 else:
                                     form_merge_fail_count += 1
                         else:
                             # 템플릿 구조를 찾을 수 없으면 첫 번째 값만 사용
-                            success = _set_value_in_nested(json_tpl[base_tag], json_path, vals[0], preserve_structure=True)
+                            # 라디오 버튼 값 변환
+                            converted_val = convert_radio_value(vals[0], field_type_info)
+                            success = _set_value_in_nested(json_tpl[base_tag], json_path, converted_val, preserve_structure=True)
                             if success:
                                 form_merge_count += 1
                             else:
