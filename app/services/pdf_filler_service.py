@@ -12,14 +12,10 @@ from app.utils.utils import (
     read_datasets_from_pdf, write_datasets_to_pdf,
     read_template_from_pdf, write_template_to_pdf,
     parse_xml, serialize_xml,
-    set_node, NS, strip_ns
+    set_node, strip_ns
 )
 
 import re
-
-from app.services.pdf_extract_service import (
-    _find_base_form_node
-)
 
 from app.services.pdf_field_type_service import (
     extract_field_types_with_path_map
@@ -201,9 +197,6 @@ def _find_matching_xpath(
                     return field_xpath_map[key]
                 
         # 완벽 매칭이 없으면 첫 번째 매칭 키 사용 (인덱스가 다를 수 있으므로)
-        # 하지만 이 경우 경고를 출력하여 디버깅에 도움
-        if matching_keys:
-            logger.debug(f"인덱스 완벽 매칭 실패: json_path={json_path}, json_indices={json_indices}, 첫 번째 매칭 키 사용: {matching_keys[0]}")
         return field_xpath_map[matching_keys[0]]
     
     # 3. 경로의 접두사로 매칭 시도
@@ -273,7 +266,6 @@ def _traverse_json_to_xfa(
             # 일반 배열 처리
             for i, item in enumerate(value):
                 array_path = f"{json_path}[{i}]"
-                logger.debug(f"배열 처리: json_path={json_path}, i={i}, array_path={array_path}")
                 if isinstance(item, dict):
                     _traverse_json_to_xfa(form, item, base_tag, array_path, field_xpath_map, field_type_map)
                 else:
@@ -293,7 +285,6 @@ def _traverse_json_to_xfa(
                             clean_array_path = re.sub(r'\[\d+\]', '', array_path)
                             array_field_type_info = field_type_map.get(clean_array_path) if field_type_map else field_type_info
                         converted_value = _convert_value_for_field("" if item is None else str(item), array_field_type_info)
-                        logger.debug(f"값 설정: {xfa_path} = {converted_value}")
                         set_node(form, xfa_path, converted_value)
                     else:
                         logger.warning(f"XFA 경로를 찾을 수 없음: array_path={array_path}")
@@ -304,9 +295,6 @@ def _traverse_json_to_xfa(
             if not xfa_path:
                 # 매핑에 없으면 기본 경로 생성
                 xfa_path = _json_path_to_xfa_path(json_path, base_tag, field_xpath_map)
-                logger.warning(f"field_xpath_map에서 매칭 실패, 기본 경로 생성: json_path={json_path}, xfa_path={xfa_path}, field_xpath_map keys (일부)={list(field_xpath_map.keys())[:10] if field_xpath_map else []}")
-            else:
-                logger.debug(f"field_xpath_map에서 경로 찾음: json_path={json_path}, xfa_path={xfa_path}")
             
             # 필드 타입 정보 찾기 (여러 경로로 시도)
             field_type_info = None
@@ -314,15 +302,11 @@ def _traverse_json_to_xfa(
             if field_type_map:
                 # 1. 정확한 경로로 먼저 시도
                 field_type_info = field_type_map.get(json_path)
-                if field_type_info:
-                    logger.debug(f"필드 타입 정보 찾음 (정확한 경로): {json_path} -> {field_type_info}")
                 
                 # 2. 배열 인덱스 제거한 경로로 시도
                 if not field_type_info:
                     clean_json_path = re.sub(r'\[\d+\]', '', json_path)
                     field_type_info = field_type_map.get(clean_json_path)
-                    if field_type_info:
-                        logger.debug(f"필드 타입 정보 찾음 (인덱스 제거): {clean_json_path} -> {field_type_info}")
                 
                 # 3. 부모 경로로 시도 (라디오 그룹의 경우 필드 이름이 그룹 이름과 다를 수 있음)
                 # 예: "IMM_0800.Page1.PersonalDetails.Gender.RadioButtonList" -> "IMM_0800.Page1.PersonalDetails.Gender"
@@ -335,7 +319,6 @@ def _traverse_json_to_xfa(
                         if parent_type_info and parent_type_info.get("type") == "radio":
                             field_type_info = parent_type_info
                             radio_parent_path = parent_path
-                            logger.debug(f"부모 경로에서 라디오 타입 찾음: {parent_path} -> {json_path}, options={parent_type_info.get('options', [])}")
                             break
                         # 부모 경로의 자식 필드가 라디오인 경우도 확인
                         # 예: "IMM_0800.Page1.Language.language" -> "IMM_0800.Page1.Language.language"가 라디오 타입
@@ -344,7 +327,6 @@ def _traverse_json_to_xfa(
                         if child_type_info and child_type_info.get("type") == "radio":
                             field_type_info = child_type_info
                             radio_parent_path = parent_path  # 부모 경로를 라디오 그룹 경로로 사용
-                            logger.debug(f"자식 경로에서 라디오 타입 찾음: {child_path} -> {json_path}, parent={parent_path}, options={child_type_info.get('options', [])}")
                             break
                 
                 # 4. 필드 이름으로 직접 검색 (라디오 버튼의 경우)
@@ -354,17 +336,11 @@ def _traverse_json_to_xfa(
                     for path, type_info in field_type_map.items():
                         if type_info.get("type") == "radio" and (path.endswith(f".{field_name}") or path.endswith(f"/{field_name}")):
                             field_type_info = type_info
-                            logger.debug(f"필드 이름으로 라디오 타입 찾음: {path} -> {json_path}")
                             break
-                
-                # 5. 필드 타입 정보를 찾지 못한 경우 로깅
-                if not field_type_info:
-                    logger.debug(f"필드 타입 정보를 찾을 수 없음: json_path={json_path}, field_type_map keys (일부)={list(field_type_map.keys())[:20] if field_type_map else []}")
             
             # 라디오 버튼 그룹(exclGroup) 처리
             if field_type_info and field_type_info.get("type") == "radio":
                 options = field_type_info.get("options", [])
-                logger.info(f"라디오 버튼 처리 시작: json_path={json_path}, value={value}, options={options}, xfa_path={xfa_path}, radio_parent_path={radio_parent_path}")
                 
                 # datasets.xml에서는 라디오 버튼이 개별 필드로 저장될 수 있음
                 # 예: <Language><language>N</language></Language>
@@ -372,7 +348,6 @@ def _traverse_json_to_xfa(
                 
                 # field_xpath_map에 현재 경로가 있으면 datasets.xml의 개별 필드로 처리
                 is_individual_field = field_xpath_map and json_path in field_xpath_map
-                logger.info(f"라디오 버튼 필드 타입 판단: json_path={json_path}, is_individual_field={is_individual_field}, json_path in field_xpath_map={json_path in field_xpath_map if field_xpath_map else False}, xfa_path={xfa_path}")
                 
                 if is_individual_field and xfa_path:
                     # datasets.xml에서 라디오 버튼은 RadioButtonList 자식 요소로 저장되어야 함
@@ -400,10 +375,8 @@ def _traverse_json_to_xfa(
                             if 1 <= idx <= len(options):  # 1-based 인덱스
                                 # 이미 숫자 인덱스이면 그대로 사용
                                 final_value = str(idx)
-                                logger.debug(f"라디오 버튼 RadioButtonList (숫자 인덱스): json_path={json_path}, value={converted_value} -> {final_value}")
                             elif 0 <= idx < len(options):  # 0-based 인덱스
                                 final_value = str(idx + 1)  # 1-based로 변환
-                                logger.debug(f"라디오 버튼 RadioButtonList (0-based -> 1-based): json_path={json_path}, value={converted_value} -> {final_value}")
                         except (ValueError, TypeError):
                             # 숫자가 아니면 옵션 이름으로 처리
                             if converted_value in options:
@@ -411,12 +384,8 @@ def _traverse_json_to_xfa(
                                 try:
                                     idx = options.index(converted_value) + 1
                                     final_value = str(idx)
-                                    logger.debug(f"라디오 버튼 RadioButtonList (옵션 이름 -> 인덱스): json_path={json_path}, option={converted_value} -> {final_value}")
                                 except ValueError:
                                     pass
-                            else:
-                                # 옵션 이름이 아니면 변환된 값 사용 (이미 숫자일 수 있음)
-                                logger.debug(f"라디오 버튼 RadioButtonList (변환된 값): json_path={json_path}, value={converted_value}")
                     
                     # RadioButtonList 노드 찾기 또는 생성
                     # set_node를 사용하여 직접 설정 (노드가 없으면 생성하도록 set_node 수정 필요)
@@ -466,7 +435,6 @@ def _traverse_json_to_xfa(
                                 parent_node = children[0]
                             else:
                                 parent_node = None
-                                logger.debug(f"부모 노드 찾기 실패: part={part}, parent_node={strip_ns(parent_node.tag) if parent_node is not None else None}")
                                 break
                     
                     if parent_node is not None:
@@ -483,11 +451,9 @@ def _traverse_json_to_xfa(
                             NS_XFA_DATA = "http://www.xfa.org/schema/xfa-data/1.0/"
                             radio_list_node = Element(f"{{{NS_XFA_DATA}}}RadioButtonList")
                             parent_node.append(radio_list_node)
-                            logger.info(f"RadioButtonList 노드 생성: {parent_path}/RadioButtonList")
                         
                         # 값 설정
                         radio_list_node.text = final_value
-                        logger.info(f"라디오 버튼 RadioButtonList 설정: json_path={json_path}, parent_path={parent_path}, value={final_value}")
                     else:
                         logger.warning(f"부모 노드를 찾을 수 없음: parent_path={parent_path}, xfa_path={xfa_path}, form_tag={strip_ns(form.tag) if form is not None else None}")
                     
@@ -501,29 +467,24 @@ def _traverse_json_to_xfa(
                         parent_xfa_path = _find_matching_xpath(radio_parent_path, field_xpath_map, base_tag)
                         if parent_xfa_path:
                             xfa_path = parent_xfa_path
-                            logger.debug(f"라디오 그룹 경로로 조정 (field_xpath_map): {json_path} -> {xfa_path}")
                         else:
                             # 부모 경로의 xfa_path를 찾지 못하면 기본 경로 생성
                             parent_xfa_path = _json_path_to_xfa_path(radio_parent_path, base_tag, field_xpath_map)
                             if parent_xfa_path:
                                 xfa_path = parent_xfa_path
-                                logger.debug(f"라디오 그룹 경로 생성: {json_path} -> {xfa_path}")
                     elif not xfa_path:
                         # xfa_path가 없고 radio_parent_path도 없으면 현재 경로에서 부모 경로 생성
                         path_parts = json_path.split(".")
                         if len(path_parts) > 1:
                             parent_path = ".".join(path_parts[:-1])
                             xfa_path = _json_path_to_xfa_path(parent_path, base_tag, field_xpath_map)
-                            logger.debug(f"라디오 그룹 경로 생성 (현재 경로의 부모): {json_path} -> {xfa_path}")
                     
                     if not xfa_path:
-                        logger.warning(f"라디오 버튼 그룹 xfa_path를 찾을 수 없음: json_path={json_path}, radio_parent_path={radio_parent_path}")
                         # 마지막 시도: 현재 경로에서 부모 경로 생성
                         path_parts = json_path.split(".")
                         if len(path_parts) > 1:
                             parent_path = ".".join(path_parts[:-1])
                             xfa_path = _json_path_to_xfa_path(parent_path, base_tag, field_xpath_map)
-                            logger.debug(f"라디오 그룹 경로 생성 (최종 시도): {json_path} -> {xfa_path}")
                     
                     if xfa_path:
                         # 값 변환: "Y" -> "Yes", "N" -> "No" 등
@@ -559,44 +520,34 @@ def _traverse_json_to_xfa(
                             # 예: ./Page1/ApplyFrom/ApplyFromOpt -> ./Page1/ApplyFrom/ApplyFromOpt/OutsideCanada
                             # 옵션 이름을 필드 이름으로 사용 시도
                             option_xpath = f"{xfa_path}/{selected_option}"
-                            logger.info(f"라디오 버튼 그룹 선택 시도: json_path={json_path}, value={value}, converted={converted_value}, option={selected_option}, option_xpath={option_xpath}")
                             set_node(form, option_xpath, "1")
-                            
-                            # 선택되지 않은 다른 옵션들은 nil="true"로 설정 (datasets.xml에서도)
-                            # 하지만 datasets.xml은 개별 필드로 저장되므로 여기서는 form.xml만 처리
-                            # form.xml 처리는 _fill_form_radio_groups에서 수행
                             
                             # 대소문자 변형도 시도 (옵션 이름이 정확히 일치하지 않을 수 있음)
                             for opt in options:
                                 if opt != selected_option and opt.lower() == selected_option.lower():
                                     option_xpath_variant = f"{xfa_path}/{opt}"
-                                    logger.debug(f"대소문자 변형으로 추가 시도: {option_xpath_variant}")
                                     set_node(form, option_xpath_variant, "1")
                             
                             # 옵션 이름의 첫 글자를 소문자로 변환 시도
                             option_lower = selected_option[0].lower() + selected_option[1:] if selected_option else ""
                             if option_lower and option_lower != selected_option:
                                 option_xpath_lower = f"{xfa_path}/{option_lower}"
-                                logger.debug(f"소문자 변형으로 추가 시도: {option_xpath_lower}")
                                 set_node(form, option_xpath_lower, "1")
                             
                             # 옵션 이름을 공백 제거하고 소문자로 변환한 버전도 시도
                             option_no_space = selected_option.replace(" ", "")
                             if option_no_space != selected_option:
                                 option_xpath_no_space = f"{xfa_path}/{option_no_space}"
-                                logger.debug(f"공백 제거 변형으로 추가 시도: {option_xpath_no_space}")
                                 set_node(form, option_xpath_no_space, "1")
                             
                             # 옵션 이름을 모두 소문자로 변환한 버전도 시도
                             option_all_lower = selected_option.lower()
                             if option_all_lower != selected_option:
                                 option_xpath_all_lower = f"{xfa_path}/{option_all_lower}"
-                                logger.debug(f"모두 소문자 변형으로 추가 시도: {option_xpath_all_lower}")
                                 set_node(form, option_xpath_all_lower, "1")
                             
                             # datasets.xml의 개별 필드에도 값 설정 (양쪽 모두 설정하여 호환성 확보)
                             if xfa_path and is_individual_field:
-                                logger.debug(f"라디오 버튼 개별 필드에도 값 설정: json_path={json_path}, xfa_path={xfa_path}, value={converted_value}")
                                 # 옵션 이름을 인덱스로 변환하여 설정
                                 try:
                                     idx = options.index(selected_option) + 1
@@ -604,23 +555,17 @@ def _traverse_json_to_xfa(
                                 except (ValueError, IndexError):
                                     set_node(form, xfa_path, converted_value)
                         else:
-                            logger.warning(f"라디오 버튼 옵션을 찾을 수 없음: json_path={json_path}, value={value}, converted={converted_value}, options={options}, xfa_path={xfa_path}")
                             # 옵션을 찾지 못했지만, datasets.xml의 개별 필드로 처리 시도
                             if xfa_path:
-                                logger.info(f"라디오 버튼 개별 필드로 폴백 처리: json_path={json_path}, xfa_path={xfa_path}, value={converted_value}")
                                 set_node(form, xfa_path, converted_value)
-                    else:
-                        logger.warning(f"라디오 버튼 그룹 xfa_path가 없음: json_path={json_path}")
                 else:
                     # 옵션이 없으면 일반 필드처럼 처리
                     if xfa_path:
                         converted_value = _convert_value_for_field("" if value is None else str(value), field_type_info)
-                        logger.debug(f"값 설정 시도 (라디오, 옵션 없음): json_path={json_path}, xfa_path={xfa_path}, value={value}")
                         set_node(form, xfa_path, converted_value)
             else:
                 # 일반 필드 처리
                 converted_value = _convert_value_for_field("" if value is None else str(value), field_type_info)
-                logger.info(f"일반 필드 값 설정: json_path={json_path}, xfa_path={xfa_path}, value={value}, converted_value={converted_value}, field_type={field_type_info.get('type') if field_type_info else 'unknown'}")
                 set_node(form, xfa_path, converted_value)
 
 def _set_form_from_json(
@@ -676,11 +621,6 @@ def _set_form_from_json(
     else:
         target_data = data
 
-    # 디버깅: OptionsQ2 관련 키들 출력
-    if field_xpath_map:
-        optionsq2_keys = [k for k in field_xpath_map.keys() if "OptionsQ2" in k]
-        if optionsq2_keys:
-            logger.info(f"field_xpath_map에서 OptionsQ2 관련 키들: {optionsq2_keys}")
 
     # current_path를 base_tag로 시작해서 full JSON path를 일관되게 사용
     _traverse_json_to_xfa(form, target_data, base_tag, base_tag, field_xpath_map, field_type_map)
@@ -747,12 +687,10 @@ def _build_field_xpath_map(pdf_path: Path, base_tag: str) -> Tuple[Dict[str, str
         # 템플릿에 있는 키만 추가 (extract_field_values와 동일한 키 집합 유지)
         # 템플릿에 없는 키는 스킵
         if not _key_exists_in_template(field_template, base_tag, field.json_path):
-            logger.debug(f"템플릿에 없는 필드 스킵: json_path={json_path}")
             continue
 
         # XFA 상대 경로는 field.rel_xpath 그대로 사용
         field_xpath_map[json_path] = field.rel_xpath
-        logger.debug(f"필드 매핑 (datasets): json_path={json_path}, rel_xpath={field.rel_xpath}")
 
         # 타입 정보: json_path_type_map에서 그대로 가져오기 (없으면 text)
         type_info = json_path_type_map.get(json_path)
@@ -801,7 +739,6 @@ def _build_field_xpath_map(pdf_path: Path, base_tag: str) -> Tuple[Dict[str, str
             # form.xml의 필드는 _json_path_to_xfa_path를 사용하여 XFA 경로 생성
             xfa_path = _json_path_to_xfa_path(full_json_path, base_tag, None)
             field_xpath_map[full_json_path] = xfa_path
-            logger.debug(f"필드 매핑 (form): json_path={full_json_path}, xfa_path={xfa_path}")
             form_field_count += 1
             
             # 타입 정보: json_path_type_map에서 가져오기 (없으면 text)
@@ -812,7 +749,6 @@ def _build_field_xpath_map(pdf_path: Path, base_tag: str) -> Tuple[Dict[str, str
                 type_info = json_path_type_map.get(clean_json_path, {"type": "text"})
             field_type_map[full_json_path] = type_info
 
-    logger.info(f"필드 매핑 완료: 총 {len(field_xpath_map)}개 필드 (datasets: {len(fields)}개, form: {form_field_count}개)")
     return field_xpath_map, field_type_map
 
 def fill_pdf(
@@ -879,7 +815,6 @@ def _cleanup_temp_file(file_path: Path) -> None:
     try:
         if file_path.exists():
             file_path.unlink()
-            logger.info(f"임시 파일 삭제 완료: {file_path}")
     except Exception as e:
         logger.error(f"임시 파일 삭제 실패: {file_path} - {e}")
 
@@ -911,12 +846,9 @@ async def fill_pdf_with_data(
             detail=f"파일 '{filename}'을 찾을 수 없습니다. 먼저 /upload-and-extract로 파일을 업로드해주세요."
         )
     
-    logger.info(f"PDF 파일 찾음: {file_path}, fields keys: {list(fields_data.keys()) if fields_data else None}")
-    
     try:
         # base_tag 추론
         base_tag = get_base_tag_from_json(fields_data)
-        logger.info(f"Base tag: {base_tag}")
         
         # 임시 파일 생성
         form_name = file_path.stem
@@ -924,9 +856,7 @@ async def fill_pdf_with_data(
         
         try:
             # PDF 채우기
-            logger.info(f"PDF 채우기 시작: {file_path} -> {output_file}")
             fill_pdf(file_path, fields_data, output_file, base_tag_hint=base_tag)
-            logger.info(f"PDF 채우기 완료: {output_file}")
             
             # 다운로드 후 파일 삭제를 백그라운드 작업으로 등록
             background_tasks.add_task(_cleanup_temp_file, output_file)
@@ -1124,19 +1054,13 @@ def _fill_template_radio_groups(
                         # template.xml의 라디오 버튼 그룹에 값 설정
                         # template.xml에서는 옵션 이름을 그대로 사용 (원본 PDF와 동일)
                         option_xpath = f"{xfa_path}/{selected_option}"
-                        logger.info(f"template.xml 라디오 버튼 그룹 설정: {json_path} -> {option_xpath} = {selected_option}")
                         set_node(base_node, option_xpath, selected_option)
-                        
-                        # exclGroup 자체에는 value를 설정하지 않음
-                        # XFA 스펙에 따르면 exclGroup은 직접 value 요소를 가질 수 없음
-                        # 각 라디오 버튼 옵션 필드에만 값을 설정해야 함
                         
                         # 선택되지 않은 다른 옵션들은 옵션 이름을 그대로 설정 (원본 PDF와 동일하게)
                         # template.xml에서는 모든 옵션에 옵션 이름을 설정
                         for opt in options:
                             if opt != selected_option:
                                 other_option_xpath = f"{xfa_path}/{opt}"
-                                logger.debug(f"template.xml 선택되지 않은 옵션 설정: {other_option_xpath} = {opt}")
                                 set_node(base_node, other_option_xpath, opt)
         
         # template.xml을 PDF에 다시 쓰기
@@ -1273,7 +1197,6 @@ def _fill_form_radio_groups(
                         # form.xml의 라디오 버튼 그룹에 값 설정
                         # 선택된 옵션에 "1" 설정
                         option_xpath = f"{xfa_path}/{selected_option}"
-                        logger.info(f"form.xml 라디오 버튼 그룹 설정: {json_path} -> {option_xpath} = 1")
                         set_node(base_node, option_xpath, "1")
                         
                         # 라디오 버튼 그룹 자체에도 값 설정 (일부 PDF 뷰어에서 필요)
@@ -1303,8 +1226,8 @@ def _fill_form_radio_groups(
                             # exclGroup을 찾았지만, exclGroup 자체에는 value를 설정하지 않음
                             # XFA 스펙에 따르면 exclGroup은 직접 value 요소를 가질 수 없음
                             # 각 라디오 버튼 옵션 필드에만 값을 설정해야 함
-                        except Exception as e:
-                            logger.debug(f"form.xml 라디오 그룹 값 설정 실패: {xfa_path}, {e}")
+                        except Exception:
+                            pass
                         
                         # 선택되지 않은 다른 옵션들은 text 요소 제거 (원본 PDF와 동일하게)
                         for opt in options:
@@ -1334,7 +1257,6 @@ def _fill_form_radio_groups(
                                             if value_text is not None:
                                                 # text 요소 제거 (원본 PDF처럼 text 요소가 없도록)
                                                 value_parent.remove(value_text)
-                                                logger.debug(f"선택되지 않은 옵션 text 요소 제거: {other_option_xpath}")
                                             # override 속성은 유지
                                             value_parent.set("override", "1")
                                         else:
@@ -1344,9 +1266,8 @@ def _fill_form_radio_groups(
                                             value_parent = Element(f"{{{NS_XFA}}}value")
                                             value_parent.set("override", "1")
                                             cur.append(value_parent)
-                                            logger.debug(f"선택되지 않은 옵션 value 요소 생성 (text 없음): {other_option_xpath}")
-                                except Exception as e:
-                                    logger.debug(f"선택되지 않은 옵션 처리 실패: {other_option_xpath}, {e}")
+                                except Exception:
+                                    pass
         
         # form.xml을 PDF에 다시 쓰기
         new_form_xml = serialize_xml(form_root)
@@ -1420,8 +1341,7 @@ def _fill_unbound_template_fields(pdf_path: Path, data: dict) -> None:
                     
                     if parent_tag == "exclGroup":
                         # 라디오 버튼 그룹 내부 필드는 스킵
-                        logger.debug(f"라디오 버튼 그룹 내부 필드 스킵: {fname} (parent: {parent_tag})")
-                    continue
+                        continue
 
                 # JSON full path 구성
                 # path_segments 예: ["IMM_0800", "Page1", "ContactInformation", "Information"]
@@ -1434,8 +1354,6 @@ def _fill_unbound_template_fields(pdf_path: Path, data: dict) -> None:
                     # 없으면 그냥 스킵 (절대 이름으로 덮어쓰지 않기)
                     continue
 
-                # 로그 한 번 찍어서 디버깅에 도움되게
-                logger.debug(f"Template field fill: {full_path} -> {val!r}")
 
                 # <value><text> 노드 찾아서 값 세팅
                 # 주의: caption 쪽 <value><text>랑 헷갈리지 않게

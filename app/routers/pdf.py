@@ -34,11 +34,8 @@ async def upload_and_extract_endpoint(
         example="IMM0800e.pdf"
     )
 ):
-    logger.info(f"파일 업로드 요청 받음: filename={file.filename}, content_type={file.content_type}")
-    
     # 파일 내용 읽기
     contents = await file.read()
-    logger.info(f"파일 크기: {len(contents)} bytes")
     
     # 서비스를 통해 업로드 및 필드 추출
     result = await upload_and_extract(file.filename, contents)
@@ -66,8 +63,6 @@ async def fill_pdf_endpoint(
     request: FillPdfRequest,
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    logger.info(f"JSON body 요청: filename={request.filename}")
-    
     # 서비스를 통해 PDF 채우기
     return await fill_pdf_with_data(
         request.filename,
@@ -115,8 +110,6 @@ async def extract_field_types_endpoint(
     request: ExtractFieldTypesRequest
 ):
     """PDF 필드 타입 추출 엔드포인트"""
-    logger.info(f"필드 타입 추출 요청: filename={request.filename}")
-    
     # 업로드 디렉토리에서 파일 찾기
     base_dir = Path(__file__).parent.parent.parent
     upload_dir = base_dir / "uploads"
@@ -131,7 +124,6 @@ async def extract_field_types_endpoint(
     try:
         # 필드 타입 추출
         field_types = extract_field_types(file_path)
-        logger.info(f"필드 타입 추출 완료: {len(field_types)}개 필드")
         
         return JSONResponse(content=field_types)
     except ValueError as e:
@@ -187,8 +179,6 @@ async def extract_field_values_endpoint(
     request: ExtractFieldValuesRequest
 ):
     """PDF 필드 값 추출 엔드포인트"""
-    logger.info(f"필드 값 추출 요청: filename={request.filename}")
-    
     # 업로드 디렉토리에서 파일 찾기
     base_dir = Path(__file__).parent.parent.parent
     upload_dir = base_dir / "uploads"
@@ -203,7 +193,6 @@ async def extract_field_values_endpoint(
     try:
         # 필드 값 추출
         field_values = extract_field_values(file_path)
-        logger.info(f"필드 값 추출 완료: filename={request.filename}")
         
         return JSONResponse(content=field_values)
     except ValueError as e:

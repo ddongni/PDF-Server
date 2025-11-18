@@ -170,19 +170,14 @@ def set_node(form: etree._Element, xpath: str, val: str):
 							value_text = Element(f"{{{NS_XFA_FORM}}}text")
 							value_parent.append(value_text)
 						
-						old_text = value_text.text
 						value_text.text = "" if val is None else str(val)
-						logger.debug(f"노드 값 설정 성공 (field value/text): xpath={xpath}, old_text={old_text}, new_text={value_text.text}")
 						return
 					# 일반 노드는 text 직접 설정
-					old_text = cur.text
 					cur.text = "" if val is None else str(val)
-					logger.debug(f"노드 값 설정 성공 (직접 경로): xpath={xpath}, old_text={old_text}, new_text={cur.text}")
 					return
 				
 				# 방법 2: XPath 사용 (하위 모든 곳에서 검색)
 				xpath_expr = ".//" + "/".join([f"*[local-name()='{part.split('[')[0]}']" for part in path_parts])
-				logger.debug(f"XPath 검색: xpath={xpath}, xpath_expr={xpath_expr}")
 				nodes = form.xpath(xpath_expr)
 				if nodes:
 					node = nodes[0]
@@ -211,14 +206,10 @@ def set_node(form: etree._Element, xpath: str, val: str):
 							value_text = Element(f"{{{NS_XFA_FORM}}}text")
 							value_parent.append(value_text)
 						
-						old_text = value_text.text
 						value_text.text = "" if val is None else str(val)
-						logger.debug(f"노드 값 설정 성공 (field value/text, XPath): xpath={xpath}, old_text={old_text}, new_text={value_text.text}")
 						return
 					# 일반 노드는 text 직접 설정
-					old_text = node.text
 					node.text = "" if val is None else str(val)
-					logger.debug(f"노드 값 설정 성공 (XPath): xpath={xpath}, old_text={old_text}, new_text={node.text}")
 					return
 				else:
 					logger.warning(f"노드를 찾을 수 없음: xpath={xpath}, xpath_expr={xpath_expr}")
@@ -229,9 +220,7 @@ def set_node(form: etree._Element, xpath: str, val: str):
 		# 단순 태그 경로인 경우 기존 방식 사용
 		node = form.find(xpath, namespaces=NS)
 		if node is not None:
-			old_text = node.text
 			node.text = "" if val is None else str(val)
-			logger.debug(f"노드 값 설정 성공 (find 방식): xpath={xpath}, old_text={old_text}, new_text={node.text}")
 			return
 		else:
 			logger.warning(f"노드를 찾을 수 없음 (find 방식): xpath={xpath}")

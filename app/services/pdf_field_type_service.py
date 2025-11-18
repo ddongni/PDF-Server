@@ -1,23 +1,10 @@
 from __future__ import annotations
 import logging
 import re
-import json
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 from lxml import etree
 import pikepdf
-
-from app.utils.utils import (
-    read_datasets_from_pdf,
-    read_template_from_pdf,
-    parse_xml,
-    strip_ns
-)
-from app.services.pdf_extract_service import (
-    _find_base_form_node,
-    _collect_leaf_fields,
-    Field
-)
 
 logger = logging.getLogger(__name__)
 
@@ -300,79 +287,7 @@ def build_field_type_info(pdf_path: Path) -> Tuple[Dict[str, Dict], Dict[str, Di
     
     return result_by_path, result_by_name, result_by_json_path
 
-# ---------- pdf_filler_service에서 사용하는 함수 ----------
 
-# ---------- datasets.xml 경로와 template.xml 필드 이름 매핑 ----------
-
-def _get_field_path_from_datasets(elem: etree._Element, base_node: etree._Element) -> str | None:
-    """datasets.xml에서 필드 요소의 경로를 반환합니다."""
-    path_parts = []
-    current = elem
-    while current is not None and current is not base_node:
-        tag = strip_ns(current.tag)
-        parent = current.getparent()
-        if parent is not None:
-            same_siblings = [c for c in parent if strip_ns(c.tag) == tag]
-            if len(same_siblings) > 1:
-                idx = same_siblings.index(current) + 1  # 1-based
-                path_parts.append(f"{tag}[{idx}]")
-            else:
-                path_parts.append(tag)
-        else:
-            path_parts.append(tag)
-        current = parent
-    path_parts.reverse()
-    return "/".join(path_parts) if path_parts else None
-
-def _set_type_info_in_nested(obj: dict, path: List[Tuple[str, int]], type_info: Dict[str, Any]) -> None:
-    """nested 구조에 타입 정보를 설정합니다. 배열 인덱스도 처리합니다."""
-    cur = obj
-    for i, (tag, idx) in enumerate(path):
-        is_leaf = (i == len(path) - 1)
-        
-        # cur이 리스트인 경우 처리
-        if isinstance(cur, list):
-            if not cur:
-                cur.append({})
-            if not isinstance(cur[0], dict):
-                cur[0] = {}
-            cur = cur[0]
-        
-        if not isinstance(cur, dict):
-            logger.warning(f"타입 정보 설정 중 cur가 dict가 아님: type={type(cur)}, path={path}")
-            return
-        
-        if idx >= 0:
-            # 배열 노드
-            cur.setdefault(tag, [])
-            arr = cur[tag]
-            
-            # 배열이 리스트가 아니면 리스트로 변환
-            if not isinstance(arr, list):
-                arr = []
-                cur[tag] = arr
-            
-            while len(arr) <= idx:
-                arr.append({} if not is_leaf else {})
-            
-            if is_leaf:
-                # 리프 노드에 타입 정보 설정
-                arr[idx] = type_info
-            else:
-                if not isinstance(arr[idx], dict):
-                    arr[idx] = {}
-                cur = arr[idx]
-        else:
-            # 단일 노드
-            if is_leaf:
-                # 리프 노드에 타입 정보 설정
-                cur[tag] = type_info
-            else:
-                cur.setdefault(tag, {})
-                if not isinstance(cur[tag], dict):
-                    cur[tag] = {}
-                cur = cur[tag]
-                
 def extract_field_types_with_path_map(pdf_path: Path) -> Tuple[dict, Dict[str, Dict[str, Any]]]:
     """
     기존 extract_field_types 로직을 그대로 사용하되,
@@ -389,7 +304,6 @@ def extract_field_types_with_path_map(pdf_path: Path) -> Tuple[dict, Dict[str, D
     
     # 1) template.xml에서 필드 타입 정보 추출 (경로별, 이름별, JSON 경로별)
     field_type_map_by_path, field_type_map_by_name, field_type_map_by_json_path = build_field_type_info(pdf_path)
-    logger.info(f"template.xml에서 경로별 {len(field_type_map_by_path)}개, 이름별 {len(field_type_map_by_name)}개, JSON 경로별 {len(field_type_map_by_json_path)}개 필드 타입 정보 추출 완료")
     
     # 2) _build_field_template을 사용하여 필드 템플릿 생성 (키 추출, 값 추출과 동일)
     # 이 템플릿의 구조를 그대로 사용하여 타입 정보를 채워넣습니다
@@ -544,11 +458,6 @@ def extract_field_types_with_path_map(pdf_path: Path) -> Tuple[dict, Dict[str, D
     # 템플릿 구조를 순회하며 타입 정보 설정
     if base_tag in field_template:
         walk_template_and_set_types(field_template[base_tag], base_dict)
-    
-    found_count = len(json_path_type_map)
-    
-    logger.info(f"템플릿 기반 필드 타입 추출 완료: {found_count}개 필드의 타입 정보 추출 완료")
-    logger.debug(f"JSON 경로별 타입 정보: {len(json_path_type_map)}개")
     
     return result, json_path_type_map
 

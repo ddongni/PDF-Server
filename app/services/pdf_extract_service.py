@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, re
+import re
 import hashlib
 import logging
 from dataclasses import dataclass
@@ -230,9 +230,6 @@ def _collect_leaf_fields(base: LET._Element) -> List[Field]:
             tag_name = LET.QName(el).localname if hasattr(LET, 'QName') else el.tag.split('}')[-1] if '}' in el.tag else el.tag
             if any(btn in tag_name for btn in ["SaveButton", "ResetButton", "PrintButton"]):
                 continue
-            # KeepPageSeparate 관련 필드는 로깅
-            if "KeepPageSeparate" in key:
-                logger.debug(f"KeepPageSeparate 필드 수집: key={key}, json_path={jp}, text={el.text}")
             fields.append(Field(elem=el, rel_xpath=rx, json_path=jp, key_for_map=key))
     # 중복 키 방지
     seen: Dict[str, int] = {}
@@ -283,245 +280,6 @@ def _is_file_identical(file_path: Path, contents: bytes) -> bool:
     except Exception as e:
         logger.error(f"파일 비교 중 오류: {e}")
         return False
-
-def _extract_and_save_datasets(pdf_path: Path, form_name: str) -> None:
-    """PDF에서 datasets.xml을 추출하여 datasets 폴더에 저장합니다.
-    
-    Args:
-        pdf_path: PDF 파일 경로
-        form_name: 폼 이름 (파일명에서 확장자 제거)
-    """
-    try:
-        from app.utils.utils import read_datasets_from_pdf
-        
-        # datasets.xml 추출
-        datasets_xml = read_datasets_from_pdf(pdf_path)
-        
-        # datasets 폴더 생성
-        base_dir = _get_base_dir()
-        datasets_dir = base_dir / "datasets"
-        datasets_dir.mkdir(exist_ok=True)
-        
-        # XML 파일 저장
-        xml_file = datasets_dir / f"{form_name}.xml"
-        with open(xml_file, "wb") as f:
-            f.write(datasets_xml)
-        
-        logger.info(f"datasets.xml 저장 완료: {xml_file}")
-    except Exception as e:
-        logger.warning(f"datasets.xml 추출 및 저장 실패: {str(e)}")
-        # datasets.xml 추출 실패는 치명적 오류가 아니므로 경고만 출력
-
-def _extract_and_save_template(pdf_path: Path, form_name: str) -> None:
-    """PDF에서 template.xml을 추출하여 templates 폴더에 저장합니다.
-    
-    Args:
-        pdf_path: PDF 파일 경로
-        form_name: 폼 이름 (파일명에서 확장자 제거)
-    """
-    try:
-        from app.utils.utils import read_template_from_pdf
-        
-        # template.xml 추출
-        template_xml = read_template_from_pdf(pdf_path)
-        
-        if template_xml is None:
-            logger.warning(f"template.xml을 찾을 수 없습니다: {pdf_path}")
-            return
-        
-        # templates 폴더 생성
-        base_dir = _get_base_dir()
-        templates_dir = base_dir / "templates"
-        templates_dir.mkdir(exist_ok=True)
-        
-        # XML 파일 저장
-        xml_file = templates_dir / f"{form_name}.xml"
-        with open(xml_file, "wb") as f:
-            f.write(template_xml)
-        
-        logger.info(f"template.xml 저장 완료: {xml_file}")
-    except Exception as e:
-        logger.warning(f"template.xml 추출 및 저장 실패: {str(e)}")
-        # template.xml 추출 실패는 치명적 오류가 아니므로 경고만 출력
-
-def _extract_and_save_form(pdf_path: Path, form_name: str) -> None:
-    """PDF에서 form.xml을 추출하여 forms 폴더에 저장합니다.
-    
-    Args:
-        pdf_path: PDF 파일 경로
-        form_name: 폼 이름 (파일명에서 확장자 제거)
-    """
-    try:
-        # form.xml 추출
-        form_xml = _read_form_from_pdf(pdf_path)
-        
-        if form_xml is None:
-            logger.warning(f"form.xml을 찾을 수 없습니다: {pdf_path}")
-            return
-        
-        # forms 폴더 생성
-        base_dir = _get_base_dir()
-        forms_dir = base_dir / "forms"
-        forms_dir.mkdir(exist_ok=True)
-        
-        # XML 파일 저장
-        xml_file = forms_dir / f"{form_name}.xml"
-        with open(xml_file, "wb") as f:
-            f.write(form_xml)
-        
-        logger.info(f"form.xml 저장 완료: {xml_file}")
-    except Exception as e:
-        logger.warning(f"form.xml 추출 및 저장 실패: {str(e)}")
-        # form.xml 추출 실패는 치명적 오류가 아니므로 경고만 출력
-
-def _extract_and_save_acroform_fields(pdf_path: Path, form_name: str) -> None:
-    """PDF에서 AcroForm 필드 값을 추출하여 acroforms 폴더에 JSON으로 저장합니다.
-    
-    Args:
-        pdf_path: PDF 파일 경로
-        form_name: 폼 이름 (파일명에서 확장자 제거)
-    """
-    try:
-        import pikepdf
-        import json
-        
-        acroform_fields = {}
-        
-        with pikepdf.open(str(pdf_path)) as pdf:
-            # AcroForm이 있는지 확인
-            if "/AcroForm" not in pdf.Root:
-                logger.info(f"AcroForm이 없습니다: {pdf_path}")
-                return
-            
-            acro_form = pdf.Root["/AcroForm"]
-            
-            # Fields 배열 확인
-            if "/Fields" not in acro_form:
-                logger.info(f"AcroForm Fields가 없습니다: {pdf_path}")
-                return
-            
-            fields = acro_form["/Fields"]
-            
-            def extract_appearance_stream(ap_dict):
-                """Appearance Stream에서 정보를 추출합니다."""
-                ap_info = {}
-                
-                # Normal appearance (/N)
-                if "/N" in ap_dict:
-                    n_obj = ap_dict["/N"]
-                    if isinstance(n_obj, pikepdf.Stream):
-                        try:
-                            ap_info["normal"] = {
-                                "type": "stream",
-                                "length": len(n_obj.read_bytes()) if hasattr(n_obj, 'read_bytes') else 0
-                            }
-                        except:
-                            ap_info["normal"] = {"type": "stream"}
-                    elif isinstance(n_obj, pikepdf.Dictionary):
-                        # Form XObject인 경우
-                        ap_info["normal"] = {"type": "form_xobject"}
-                
-                # Rollover appearance (/R)
-                if "/R" in ap_dict:
-                    r_obj = ap_dict["/R"]
-                    if isinstance(r_obj, pikepdf.Stream):
-                        try:
-                            ap_info["rollover"] = {
-                                "type": "stream",
-                                "length": len(r_obj.read_bytes()) if hasattr(r_obj, 'read_bytes') else 0
-                            }
-                        except:
-                            ap_info["rollover"] = {"type": "stream"}
-                
-                # Down appearance (/D)
-                if "/D" in ap_dict:
-                    d_obj = ap_dict["/D"]
-                    if isinstance(d_obj, pikepdf.Stream):
-                        try:
-                            ap_info["down"] = {
-                                "type": "stream",
-                                "length": len(d_obj.read_bytes()) if hasattr(d_obj, 'read_bytes') else 0
-                            }
-                        except:
-                            ap_info["down"] = {"type": "stream"}
-                
-                return ap_info if ap_info else None
-            
-            def extract_field_value(field):
-                """필드에서 값을 추출합니다."""
-                field_dict = {}
-                
-                # 필드 이름
-                if "/T" in field:
-                    field_dict["name"] = str(field["/T"])
-                
-                # 필드 값
-                if "/V" in field:
-                    value = field["/V"]
-                    if isinstance(value, pikepdf.String):
-                        field_dict["value"] = str(value)
-                    elif isinstance(value, pikepdf.Name):
-                        field_dict["value"] = str(value)
-                    elif isinstance(value, (int, float)):
-                        field_dict["value"] = value
-                    elif isinstance(value, bool):
-                        field_dict["value"] = value
-                    else:
-                        field_dict["value"] = str(value)
-                
-                # 필드 타입
-                if "/FT" in field:
-                    field_type = field["/FT"]
-                    if field_type == "/Tx":  # Text
-                        field_dict["type"] = "text"
-                    elif field_type == "/Btn":  # Button (checkbox/radio)
-                        field_dict["type"] = "button"
-                    elif field_type == "/Ch":  # Choice (dropdown/list)
-                        field_dict["type"] = "choice"
-                    elif field_type == "/Sig":  # Signature
-                        field_dict["type"] = "signature"
-                    else:
-                        field_dict["type"] = str(field_type)
-                
-                # Appearance Stream (/AP)
-                if "/AP" in field:
-                    ap_info = extract_appearance_stream(field["/AP"])
-                    if ap_info:
-                        field_dict["appearance"] = ap_info
-                
-                # Kids (하위 필드)가 있으면 재귀적으로 처리
-                if "/Kids" in field:
-                    kids = []
-                    for kid in field["/Kids"]:
-                        kid_dict = extract_field_value(kid)
-                        if kid_dict:
-                            kids.append(kid_dict)
-                    if kids:
-                        field_dict["kids"] = kids
-                
-                return field_dict if field_dict else None
-            
-            # 모든 필드 추출
-            for field in fields:
-                field_data = extract_field_value(field)
-                if field_data:
-                    field_name = field_data.get("name", "unnamed")
-                    acroform_fields[field_name] = field_data
-        
-        # acroforms 폴더 생성
-        base_dir = _get_base_dir()
-        acroforms_dir = base_dir / "acroforms"
-        acroforms_dir.mkdir(exist_ok=True)
-        
-        # JSON 파일 저장
-        json_file = acroforms_dir / f"{form_name}.json"
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(acroform_fields, f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"AcroForm 필드 값 저장 완료: {json_file} ({len(acroform_fields)}개 필드)")
-    except Exception as e:
-        logger.warning(f"AcroForm 필드 값 추출 및 저장 실패: {str(e)}")
-        # AcroForm 필드 추출 실패는 치명적 오류가 아니므로 경고만 출력
 
 # ============== 메인 파이프라인 ==============
 def _build_field_template(pdf_path: Path) -> dict:
@@ -597,8 +355,6 @@ def _build_field_template(pdf_path: Path) -> dict:
         # KeepPageSeparate 같은 경우를 위해 특별 처리
         # ("Page1", "KeepPageSeparate") 접두사가 여러 번 나오는지 확인
         keep_page_separate_prefix = ("Page1", "KeepPageSeparate")
-        if prefix_count.get(keep_page_separate_prefix, 0) > 1:
-            logger.debug(f"KeepPageSeparate가 {prefix_count[keep_page_separate_prefix]}번 반복됨 - 배열 인덱스 추가 필요")
         
         # 경로를 추가 (중복이 있으면 배열로 처리)
         # 같은 경로가 나온 횟수를 추적
@@ -811,40 +567,17 @@ def _collect_form_field_paths_from_pdf(pdf_path: Path) -> tuple[str | None, List
 
     return base_tag, field_paths
 
-def extract_fields_from_pdf(pdf_path: Path, save_to_file: bool = True) -> dict:
+def extract_fields_from_pdf(pdf_path: Path) -> dict:
     """PDF에서 필드를 추출하여 JSON 템플릿을 반환합니다.
     
     Args:
         pdf_path: PDF 파일 경로
-        save_to_file: True이면 fields 디렉토리에 JSON 파일로 저장
     
     Returns:
         추출된 필드 정보를 담은 JSON 딕셔너리 (값은 빈 문자열)
     """
-    # fields 디렉토리 생성 (루트 디렉토리)
-    field_maps_dir = _get_base_dir() / "fields"
-    field_maps_dir.mkdir(exist_ok=True)
-
     # 공통 함수로 필드 템플릿 생성
     json_tpl = _build_field_template(pdf_path)
-    
-    form_name = pdf_path.stem
-    base_tag = next(iter(json_tpl.keys())) if json_tpl else None
-    
-    # 파일로 저장 (옵션)
-    if save_to_file:
-        json_file = field_maps_dir / f"{form_name}.json"
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(json_tpl, f, ensure_ascii=False, indent=2)
-        # 필드 개수 계산
-        def count_fields(obj):
-            if isinstance(obj, dict):
-                return sum(1 if isinstance(v, str) else count_fields(v) for v in obj.values())
-            elif isinstance(obj, list):
-                return sum(count_fields(item) for item in obj)
-            return 0
-        field_count = count_fields(json_tpl.get(base_tag, {})) if base_tag else 0
-        logger.info(f"✅ {pdf_path.name} → fields/{form_name}.json 생성 완료 (base={base_tag}, {field_count}개 필드)")
     
     return json_tpl
 
@@ -1003,15 +736,11 @@ def extract_field_values(pdf_path: Path) -> dict:
     if not base_tag:
         return json_tpl
 
-    logger.info(f"필드 템플릿 생성 완료: base_tag={base_tag}, 필드 수={len(json_tpl.get(base_tag, {})) if base_tag else 0}")
-
     # 2) datasets.xml에서 값 채우기
     # 중요: _build_field_template에서 사용한 것과 동일한 방식으로 필드 수집
     datasets_bytes = read_datasets_from_pdf(pdf_path)
     base_node, _ = _find_base_form_node(datasets_bytes)
     fields = _collect_leaf_fields(base_node)
-    
-    logger.info(f"datasets.xml 필드 수집 완료: {len(fields)}개 필드")
     
     # 필드 타입 정보 가져오기 (라디오 버튼 필드 검증용)
     # 순환 import 방지를 위해 함수 내부에서 import
@@ -1034,11 +763,6 @@ def extract_field_values(pdf_path: Path) -> dict:
         json_path = f"{base_tag}.{'.'.join(json_parts)}"
         
         # 값이 없는 경우에도 추출 시도 (빈 문자열로라도)
-        # 하지만 로깅은 별도로
-        if not v:
-            logger.debug(f"datasets.xml 필드 값 없음: json_path={json_path}, rel_xpath={field.rel_xpath}")
-            # 값이 없어도 스킵하지 않고 빈 문자열로 설정 (템플릿 구조 유지)
-            # skipped_count는 증가시키지 않음 (값이 없어도 필드는 존재하므로)
         
         # 라디오 버튼 필드의 경우, 값이 옵션 목록에 있는지 확인
         clean_json_path = re.sub(r'\[\d+\]', '', json_path)
@@ -1052,56 +776,30 @@ def extract_field_values(pdf_path: Path) -> dict:
                 value_map = {"Y": "Yes", "N": "No", "1": "Yes", "0": "No"}
                 if v in value_map and value_map[v] in options:
                     v = value_map[v]
-                    logger.debug(f"라디오 버튼 값 변환: {json_path} = {v}")
                 else:
                     # 숫자 인덱스로 변환 시도
                     try:
                         idx = int(v)
                         if 0 <= idx < len(options):
                             v = options[idx]  # 인덱스를 옵션 이름으로 변환
-                            logger.debug(f"라디오 버튼 인덱스 변환 (0-based): {json_path} = {v} (인덱스: {idx})")
                         elif 1 <= idx <= len(options):
                             v = options[idx - 1]  # 1-based 인덱스
-                            logger.debug(f"라디오 버튼 인덱스 변환 (1-based): {json_path} = {v} (인덱스: {idx})")
-                        else:
-                            # 유효하지 않은 인덱스면 원본 값 유지 (옵션 이름이 아닐 수 있음)
-                            logger.warning(f"라디오 버튼 필드 값 유효하지 않은 인덱스 (원본 값 유지): {json_path} = {v}, options={options}")
-                            # continue 제거 - 값은 추출하되 원본 값 유지
                     except (ValueError, TypeError):
-                        # 숫자가 아니고 옵션 목록에도 없으면 원본 값 유지
-                        logger.warning(f"라디오 버튼 필드 값 옵션 목록에 없음 (원본 값 유지): {json_path} = {v}, options={options}")
-                        # continue 제거 - 값은 추출하되 원본 값 유지
+                        pass
         
         # preserve_structure=True로 설정하여 템플릿에 있는 필드에만 값을 설정
         # 필드 키 추출과 동일한 키 집합을 유지하기 위해 템플릿 구조만 사용
-        json_parts_debug = []
-        for tag, idx in field.json_path:
-            if idx >= 0:
-                json_parts_debug.append(f"{tag}[{idx}]")
-            else:
-                json_parts_debug.append(tag)
-        json_path_debug = f"{base_tag}.{'.'.join(json_parts_debug)}"
-        
-        # 템플릿에 있는 필드에만 값을 설정 (preserve_structure=True)
         success = _set_value_in_nested(json_tpl[base_tag], field.json_path, v, preserve_structure=True)
         if success:
             success_count += 1
-            # 성공한 경우에도 로깅 (디버깅용)
-            if v:  # 값이 있는 경우만 로깅
-                logger.debug(f"datasets.xml 값 설정 성공: json_path={json_path_debug}, value={v}, path={field.json_path}")
         else:
             fail_count += 1
-            # 템플릿에 없는 필드는 스킵 (필드 키 추출과 동일한 키 집합 유지)
-            logger.debug(f"datasets.xml 값 설정 실패 (템플릿에 없음): json_path={json_path_debug}, value={v}, rel_xpath={field.rel_xpath}")
-    
-    logger.info(f"datasets.xml 값 설정 완료: 성공={success_count}, 실패={fail_count}, 값 없음(스킵)={skipped_count}, 총={len(fields)}")
 
     # 3) form.xml에서 값 merge
     # 중요: 템플릿 구조를 유지하면서 값만 채워넣습니다
     # 템플릿에 없는 경로는 추가하지 않고, 템플릿에 있는 경로에만 값을 설정합니다
     try:
         form_base_tag, form_values = _collect_form_field_values_from_pdf(pdf_path)
-        logger.info(f"form.xml 값 추출 완료: base_tag={form_base_tag}, 필드 수={len(form_values) if form_values else 0}")
     except Exception as e:
         logger.error(f"form.xml 값 추출 중 오류 발생: {e}", exc_info=True)
         form_base_tag, form_values = None, {}
@@ -1146,26 +844,20 @@ def extract_field_values(pdf_path: Path) -> dict:
                 # -> [(Page1, -1), (KeepPageSeparate, 0), (FamilyMember, -1), (OptionsQ2, -1)]
                 json_path = [(tag, idx) for tag, idx in tag_parts]
                 
-                logger.debug(f"form.xml 값 merge: full_json_path={full_json_path}, vals={vals}, json_path={json_path}")
-                
                 # 템플릿 구조를 유지하면서 값만 설정
                 # preserve_structure=True로 설정하여 템플릿에 없는 경로는 추가하지 않음
                 # 값이 없는 경우: datasets.xml의 값을 유지하기 위해 스킵 (덮어쓰지 않음)
                 if not vals:
-                    # form.xml에 값이 없으면 datasets.xml의 값을 유지
-                    logger.debug(f"form.xml에 값이 없음, datasets.xml 값 유지: {full_json_path}")
                     continue
                 # 값이 1개일 때
                 elif len(vals) == 1:
                     # preserve_structure=True로 설정하여 템플릿에 있는 필드에만 값을 설정
                     # 필드 키 추출과 동일한 키 집합을 유지하기 위해 템플릿 구조만 사용
                     success = _set_value_in_nested(json_tpl[base_tag], json_path, vals[0], preserve_structure=True)
-                    if not success:
-                        # 템플릿에 경로가 없으면 스킵 (필드 키 추출과 동일한 키 집합 유지)
-                        logger.debug(f"템플릿에 경로가 없음 (스킵): {full_json_path}, json_path={json_path}, vals={vals}")
-                        form_merge_fail_count += 1
-                    else:
+                    if success:
                         form_merge_count += 1
+                    else:
+                        form_merge_fail_count += 1
                 else:
                     # 여러 개일 때는 템플릿 구조에 맞게 처리
                     # 템플릿에서 마지막 태그가 배열인지 확인
@@ -1206,11 +898,10 @@ def extract_field_values(pdf_path: Path) -> dict:
                         else:
                             # 템플릿 구조를 찾을 수 없으면 첫 번째 값만 사용
                             success = _set_value_in_nested(json_tpl[base_tag], json_path, vals[0], preserve_structure=True)
-                            if not success:
-                                logger.debug(f"템플릿에 경로가 없음, 스킵: {full_json_path}")
-                                form_merge_fail_count += 1
-                            else:
+                            if success:
                                 form_merge_count += 1
+                            else:
+                                form_merge_fail_count += 1
                     else:
                         # json_path가 비어있으면 스킵
                         logger.warning(f"json_path가 비어있음: full_json_path={full_json_path}")
@@ -1219,10 +910,6 @@ def extract_field_values(pdf_path: Path) -> dict:
                 logger.error(f"form.xml 값 merge 중 오류 발생: full_json_path={full_json_path}, vals={vals}, error={e}", exc_info=True)
                 form_merge_fail_count += 1
                 continue
-        
-        logger.info(f"form.xml 값 merge 완료: 성공={form_merge_count}, 실패={form_merge_fail_count}, 총={len(form_values)}")
-    
-    logger.info(f"필드 값 추출 완료: base_tag={base_tag}, 총 필드 수={len(json_tpl.get(base_tag, {})) if base_tag else 0}")
     return json_tpl
 
 async def upload_and_extract(filename: str, contents: bytes) -> Dict[str, Any]:
@@ -1236,35 +923,17 @@ async def upload_and_extract(filename: str, contents: bytes) -> Dict[str, Any]:
     file_path = upload_dir / filename
     form_name = file_path.stem
     
-    # 체크섬 계산
-    upload_checksum = _calculate_checksum(contents)
-    logger.info(f"업로드 파일 체크섬: {upload_checksum[:16]}...")
-    
     should_use_existing = _is_file_identical(file_path, contents)
     
     try:
         if not should_use_existing:
             # 새 파일 저장
-            logger.info(f"파일 저장 중: {file_path}")
             with open(file_path, "wb") as f:
                 f.write(contents)
-            logger.info(f"파일 저장 완료: {file_path}")
         
         # ---- 여기서부터는 파일이 있다고 가정 ----
-        # 1) 스키마 추출 (빈 문자열로 채워진 템플릿)
-        try:
-            fields_json = extract_fields_from_pdf(file_path, save_to_file=True)
-        except Exception as e:
-            import traceback
-            logger.warning(f"스키마 추출/저장 중 경고: {type(e).__name__}: {str(e)}")
-            logger.warning(f"스키마 추출/저장 중 경고 - 상세: {traceback.format_exc()}")
-            raise
-        
-        # 2) 참고용으로 datasets/template/form/acroform 저장
-        _extract_and_save_datasets(file_path, form_name)
-        _extract_and_save_template(file_path, form_name)
-        _extract_and_save_form(file_path, form_name)
-        _extract_and_save_acroform_fields(file_path, form_name)
+        # 스키마 추출 (빈 문자열로 채워진 템플릿)
+        fields_json = extract_fields_from_pdf(file_path)
         
         # 최종 응답: 빈 문자열로 채워진 필드 구조만 반환 (extract_field_values와 동일한 형식)
         return fields_json
@@ -1478,14 +1147,9 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
                                 # - 값이 비어있거나 "0"이면 선택되지 않음
                                 if field_val in ("1", "Y"):
                                     val = field_name
-                                    logger.debug(f"라디오 버튼 값 찾음: {full_json_path} = {val} (값: {field_val})")
                                     break
                                 elif field_val and field_val != "0":
-                                    # 값이 있고 "0"이 아니면 선택된 것으로 간주
-                                    # "N" 값도 필드 이름과 매칭되는 경우 선택된 것으로 처리
-                                    # (예: "No" 필드에 "N" 값이 있으면 "No"가 선택된 것)
                                     val = field_name
-                                    logger.debug(f"라디오 버튼 값 찾음: {full_json_path} = {val} (값: {field_val})")
                                     break
                     
                     if val:
@@ -1494,10 +1158,7 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
                             results[full_json_path] = [val]
                         else:
                             results[full_json_path].append(val)
-                        logger.debug(f"라디오 버튼 값 추가: {full_json_path} = {val}")
                     else:
-                        # 값이 없는 경우 로깅 (하지만 빈 리스트로 추가하여 필드 경로는 유지)
-                        logger.debug(f"라디오 버튼 값 없음: {full_json_path}, path_segments={path_segments}")
                         # 빈 리스트로 추가하여 필드 경로는 유지 (나중에 datasets.xml 값으로 채울 수 있음)
                         if full_json_path not in results:
                             results[full_json_path] = []
@@ -1536,17 +1197,14 @@ def _collect_form_field_values_from_pdf(pdf_path: Path) -> tuple[str | None, Dic
                             results[full_json_path] = [val]
                         else:
                             results[full_json_path].append(val)
-                        logger.debug(f"form.xml 필드 값 추가: {full_json_path} = {val}")
                     else:
                         # 값이 없는 경우: 빈 리스트로 표시 (필드 경로는 포함)
                         if full_json_path not in results:
                             results[full_json_path] = []
-                        logger.debug(f"form.xml 필드 값 없음: {full_json_path}")
                 else:
                     # value/text 요소가 없는 경우: 빈 리스트로 표시 (필드 경로는 포함)
                     if full_json_path not in results:
                         results[full_json_path] = []
-                    logger.debug(f"form.xml 필드 value/text 요소 없음: {full_json_path}")
             else:
                 walk(child, path_segments)
 
