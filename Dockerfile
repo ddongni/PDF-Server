@@ -5,10 +5,17 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 시스템 패키지 업데이트 및 필요한 라이브러리 설치
-# lxml과 pikepdf를 위한 의존성
+# lxml과 pikepdf를 위한 의존성 + Chromium 의존성
 RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    unzip \
+    curl \
     libxml2-dev \
     libxslt1-dev \
+    # Chromium과 의존성 (모든 아키텍처 지원)
+    chromium \
+    chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements.txt 복사 및 패키지 설치

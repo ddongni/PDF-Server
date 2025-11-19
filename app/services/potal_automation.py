@@ -21,58 +21,128 @@ PROFILE_FORM_DATA = {
       "profileForm-familyName" : {
               "tag": "input",
               "type": "text",
-              "Value": "Jeongwook"
+              "value": "Jeongwook"
       },
       "personalDetailsForm-givenName" : {
               "tag": "input",
               "type": "text",
-              "Value": "Kim",
+              "value": "Kim",
       },
       "personalDetailsForm-dob" : {
               "tag": "input",
               "type": "text",
-              "Value": "1992/11/14"
+              "value": "1992/11/14"
       },
       "postOfficeBox" : {
               "tag": "input",
               "type": "text",
-              "Value": "123"
+              "value": "123"
       },
       "apartmentUnit" : {
               "tag": "input",
               "type": "text",
-              "Value": "3611"
+              "value": "3611"
       },
       "streetNumber" : {
               "tag": "input",
               "type": "text",
-              "Value": "4168"
+              "value": "4168"
       },
       "streetName" : {
               "tag": "input",
               "type": "text",
-              "Value": "Lougheed Hwy"
+              "value": "Lougheed Hwy"
       },
       "city" : {
               "tag": "input",
               "type": "text",
-              "Value": "Burnaby"
+              "value": "Burnaby"
       },
       "country" : {
               "tag": "select",
-              "Value": "Canada"
+              "value": "Canada"
+      },
+      "province" : {
+              "tag": "select",
+              "value": "BC"
       },
       "postalCode" : {
               "tag": "input",
               "type": "text",
-              "Value": "V5C 0N9"
+              "value": "V5C 0N9"
       },
       "residentialSameAsMailingAddress" : {
               "tag": "input",
               "type": "radio",
-              "Value": "Yes"
+              "value": "Yes"
       }
 }
+
+# PROFILE_FORM_DATA = {
+#       "profileForm-correspondence" : {
+#               "tag": "select",
+#               "value": "French"
+# 	},
+#       "profileForm-familyName" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "Diana"
+#       },
+#       "personalDetailsForm-givenName" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "Shin",
+#       },
+#       "personalDetailsForm-dob" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "1996/03/09"
+#       },
+#       "postOfficeBox" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "1013"
+#       },
+#       "apartmentUnit" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "1602"
+#       },
+#       "streetNumber" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "80"
+#       },
+#       "streetName" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "Pangyo Daejang Ro"
+#       },
+#       "city" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "Seongnam"
+#       },
+#       "country" : {
+#               "tag": "select",
+#               "value": "Korea, South"
+#       },
+#       "district": {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "Gyenggi-do"
+#       },
+#       "postalCode" : {
+#               "tag": "input",
+#               "type": "text",
+#               "value": "12345"
+#       },
+#       "residentialSameAsMailingAddress" : {
+#               "tag": "input",
+#               "type": "radio",
+#               "value": "Yes"
+#       }
+# }
 
 class BrowserAutomation:
     def __init__(self):
@@ -84,15 +154,35 @@ class BrowserAutomation:
         """Chrome 드라이버 설정"""
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
-        # 백그라운드 실행을 원하지 않으면 아래 주석 해제
-        # options.add_argument("--headless")
+        
+        # 도커 환경 감지 (chromium이 시스템에 설치되어 있으면 도커 환경)
+        is_docker = os.path.exists("/usr/bin/chromium")
+        
+        if is_docker:
+            # 도커 환경: 헤드리스 모드 필수 (디스플레이가 없음)
+            options.add_argument("--headless")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            options.binary_location = "/usr/bin/chromium"
+            # chromium-driver 경로 확인
+            chromedriver_path = "/usr/bin/chromedriver"
+            if os.path.exists(chromedriver_path):
+                service = Service(chromedriver_path)
+            else:
+                # chromedriver가 없으면 ChromeDriverManager 사용
+                service = Service(ChromeDriverManager().install())
+        else:
+            # 로컬 환경: 헤드리스 모드 없음 (브라우저 보임)
+            service = Service(ChromeDriverManager().install())
+        
         # 자동화 감지 방지
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
         
         self.driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
+            service=service,
             options=options
         )
         # 자동화 감지 방지 스크립트 실행
@@ -468,33 +558,98 @@ class BrowserAutomation:
                 if tag == "input":
                     if field_type == "text":
                         try:
-                            # 먼저 일반적인 방법으로 시도
+                            # Angular 앱을 위한 강력한 입력 방법
+                            # 1단계: 기존 값 제거
                             element.clear()
-                            time.sleep(0.3)
-                            element.click()  # 클릭하여 포커스
-                            time.sleep(0.3)
-                            element.send_keys(value)
-                            time.sleep(0.5)
+                            time.sleep(0.2)
                             
-                            # 입력이 제대로 되었는지 확인
-                            current_value = element.get_attribute("value")
-                            if current_value != value:
-                                # JavaScript로 직접 값 설정 (Angular 앱의 경우)
-                                logger.warning(f"  ⚠️ 일반 입력 실패, JavaScript로 재시도...")
-                                self.driver.execute_script("arguments[0].value = arguments[1];", element, value)
-                                # Angular 이벤트 트리거
+                            # 2단계: 포커스 및 선택
+                            element.click()
+                            time.sleep(0.2)
+                            element.send_keys("")  # 포커스 확보
+                            
+                            # 3단계: JavaScript로 직접 값 설정 및 Angular 이벤트 트리거
+                            self.driver.execute_script("""
+                                var element = arguments[0];
+                                var value = arguments[1];
+                                
+                                // 값 설정
+                                element.value = value;
+                                
+                                // 모든 관련 이벤트 발생
+                                var events = ['focus', 'keydown', 'keypress', 'input', 'keyup', 'change', 'blur'];
+                                events.forEach(function(eventType) {
+                                    var event = new Event(eventType, { bubbles: true, cancelable: true });
+                                    element.dispatchEvent(event);
+                                });
+                                
+                                // Angular ngModel 업데이트 (있는 경우)
+                                if (element.ngModelController) {
+                                    element.ngModelController.$setViewValue(value);
+                                    element.ngModelController.$render();
+                                }
+                                
+                                // Angular FormControl 업데이트 (있는 경우)
+                                if (window.ng && element.getAttribute('ng-model')) {
+                                    var scope = angular.element(element).scope();
+                                    if (scope) {
+                                        scope.$apply(function() {
+                                            scope[element.getAttribute('ng-model')] = value;
+                                        });
+                                    }
+                                }
+                                
+                                // Angular Reactive Forms 지원
+                                if (element.form && element.name) {
+                                    var formControl = element.form[element.name];
+                                    if (formControl && formControl.setValue) {
+                                        formControl.setValue(value);
+                                    }
+                                }
+                            """, element, value)
+                            
+                            time.sleep(0.3)
+                            
+                            # 4단계: JavaScript 입력 확인
+                            final_value = element.get_attribute("value")
+                            
+                            # JavaScript로 입력이 성공했는지 확인
+                            if final_value == value or (final_value and value in final_value):
+                                logger.info(f"  ✓ JavaScript 입력 성공: {value}")
+                            else:
+                                # JavaScript 입력 실패 시에만 Selenium send_keys 시도
+                                logger.warning(f"  ⚠️ JavaScript 입력 실패, Selenium send_keys 시도...")
+                                try:
+                                    element.clear()
+                                    element.click()
+                                    time.sleep(0.2)
+                                    element.send_keys(value)
+                                    time.sleep(0.3)
+                                    # send_keys 후 다시 확인
+                                    final_value = element.get_attribute("value")
+                                except Exception as e:
+                                    logger.warning(f"  ⚠️ send_keys도 실패: {str(e)}")
+                            
+                            # 5단계: 최종 확인 및 재시도
+                            final_value = element.get_attribute("value")
+                            if final_value != value and value not in (final_value or ""):
+                                logger.warning(f"  ⚠️ 입력 확인 실패, 강제 재설정...")
+                                # 최종 강제 설정
                                 self.driver.execute_script("""
                                     var element = arguments[0];
                                     var value = arguments[1];
+                                    element.focus();
+                                    element.value = '';
                                     element.value = value;
-                                    element.dispatchEvent(new Event('input', { bubbles: true }));
-                                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                                    element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                                    element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                    element.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
                                 """, element, value)
                                 time.sleep(0.5)
                             
                             # 최종 확인
                             final_value = element.get_attribute("value")
-                            if final_value == value or value in final_value:
+                            if final_value == value or (final_value and value in final_value):
                                 logger.info(f"  ✓ 텍스트 입력 완료: {value}")
                             else:
                                 logger.warning(f"  ⚠️ 입력 확인 실패. 현재 값: {final_value}, 기대 값: {value}")
@@ -502,55 +657,291 @@ class BrowserAutomation:
                             logger.warning(f"  ⚠️ 텍스트 입력 중 오류: {str(e)}")
                             # JavaScript로 재시도
                             try:
-                                self.driver.execute_script("arguments[0].value = arguments[1];", element, value)
                                 self.driver.execute_script("""
-                                    arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-                                    arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-                                """, element)
+                                    var element = arguments[0];
+                                    var value = arguments[1];
+                                    element.value = value;
+                                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                                    element.dispatchEvent(new Event('blur', { bubbles: true }));
+                                """, element, value)
                                 logger.info(f"  ✓ JavaScript로 텍스트 입력 완료: {value}")
                             except Exception as e2:
                                 logger.error(f"  ❌ JavaScript 입력도 실패: {str(e2)}")
                     elif field_type == "radio":
-                        # 라디오 버튼의 경우 value 속성으로 찾기
+                        # 라디오 버튼의 경우 여러 방법으로 찾기
                         try:
-                            radio = self.driver.find_element(
-                                By.CSS_SELECTOR, 
-                                f"input[name='{field_name}'][type='radio'][value='{value}']"
-                            )
-                            if not radio.is_selected():
-                                self.driver.execute_script("arguments[0].click();", radio)
-                                logger.info(f"  ✓ 라디오 버튼 선택 완료: {value}")
+                            radio = None
+                            value_lower = value.lower().strip()
+                            value_upper = value.upper().strip()
+                            
+                            # 1단계: 모든 라디오 버튼 가져오기
+                            radios = self.driver.find_elements(By.CSS_SELECTOR, f"input[name='{field_name}'][type='radio']")
+                            logger.info(f"  📻 라디오 버튼 개수: {len(radios)}")
+                            
+                            # 2단계: 여러 방법으로 매칭 시도
+                            for r in radios:
+                                # id로 찾기 (예: id="yes", value="Yes"인 경우)
+                                r_id = (r.get_attribute("id") or "").lower().strip()
+                                if value_lower == r_id:
+                                    radio = r
+                                    logger.info(f"  ✓ ID로 매칭: id='{r_id}'")
+                                    break
+                                
+                                # value 속성으로 찾기
+                                r_value = (r.get_attribute("value") or "").strip()
+                                if value == r_value or value_lower == r_value.lower():
+                                    radio = r
+                                    logger.info(f"  ✓ value로 매칭: value='{r_value}'")
+                                    break
+                                
+                                # label 텍스트로 찾기
+                                try:
+                                    r_id_for_label = r.get_attribute("id")
+                                    if r_id_for_label:
+                                        label = self.driver.find_element(By.CSS_SELECTOR, f"label[for='{r_id_for_label}']")
+                                        label_text = (label.text or "").strip()
+                                        if value == label_text or value_lower == label_text.lower():
+                                            radio = r
+                                            logger.info(f"  ✓ label 텍스트로 매칭: label='{label_text}'")
+                                            break
+                                except:
+                                    pass
+                                
+                                # label의 부모 요소에서 텍스트 찾기
+                                try:
+                                    # label이 input의 형제 요소인 경우
+                                    parent = r.find_element(By.XPATH, "./following-sibling::label[1]")
+                                    label_text = (parent.text or "").strip()
+                                    if value == label_text or value_lower == label_text.lower():
+                                        radio = r
+                                        logger.info(f"  ✓ 형제 label로 매칭: label='{label_text}'")
+                                        break
+                                except:
+                                    pass
+                            
+                            # 3단계: 라디오 버튼 선택
+                            if radio:
+                                if not radio.is_selected():
+                                    # JavaScript로 클릭 및 Angular 이벤트 트리거
+                                    self.driver.execute_script("""
+                                        var radio = arguments[0];
+                                        var fieldName = arguments[1];
+                                        
+                                        // 라디오 버튼 클릭
+                                        radio.click();
+                                        
+                                        // 모든 관련 이벤트 발생
+                                        var events = ['focus', 'click', 'change', 'blur'];
+                                        events.forEach(function(eventType) {
+                                            var event = new Event(eventType, { bubbles: true, cancelable: true });
+                                            radio.dispatchEvent(event);
+                                        });
+                                        
+                                        // Angular ngModel 업데이트
+                                        if (radio.ngModelController) {
+                                            radio.ngModelController.$setViewValue(radio.value);
+                                            radio.ngModelController.$render();
+                                        }
+                                        
+                                        // Angular FormControl 업데이트
+                                        if (radio.form && radio.name) {
+                                            var formControl = radio.form[radio.name];
+                                            if (formControl) {
+                                                if (formControl.setValue) {
+                                                    formControl.setValue(radio.value);
+                                                }
+                                                if (formControl.markAsTouched) {
+                                                    formControl.markAsTouched();
+                                                }
+                                                if (formControl.markAsDirty) {
+                                                    formControl.markAsDirty();
+                                                }
+                                            }
+                                        }
+                                        
+                                        // 같은 name의 다른 라디오 버튼들 해제 (필요한 경우)
+                                        var allRadios = document.querySelectorAll('input[name="' + fieldName + '"][type="radio"]');
+                                        allRadios.forEach(function(r) {
+                                            if (r !== radio && r.checked) {
+                                                r.checked = false;
+                                                r.dispatchEvent(new Event('change', { bubbles: true }));
+                                            }
+                                        });
+                                    """, radio, field_name)
+                                    time.sleep(0.5)
+                                    
+                                    # 선택 확인
+                                    if radio.is_selected():
+                                        logger.info(f"  ✓ 라디오 버튼 선택 완료: {value}")
+                                    else:
+                                        logger.warning(f"  ⚠️ 라디오 버튼 선택 확인 실패, 재시도...")
+                                        # 강제 선택
+                                        self.driver.execute_script("arguments[0].checked = true; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", radio)
+                                        time.sleep(0.3)
+                                        logger.info(f"  ✓ 라디오 버튼 강제 선택 완료: {value}")
+                                else:
+                                    logger.info(f"  ✓ 라디오 버튼 이미 선택됨: {value}")
                             else:
-                                logger.info(f"  ✓ 라디오 버튼 이미 선택됨: {value}")
+                                logger.warning(f"  ⚠️ 라디오 버튼을 찾을 수 없습니다: {field_name}={value}")
+                                # 디버깅: 모든 라디오 버튼 정보 로깅
+                                logger.info(f"  사용 가능한 라디오 버튼:")
+                                for i, r in enumerate(radios):
+                                    r_id = r.get_attribute("id") or "없음"
+                                    r_value = r.get_attribute("value") or "없음"
+                                    try:
+                                        r_id_for_label = r.get_attribute("id")
+                                        label_text = "없음"
+                                        if r_id_for_label:
+                                            label = self.driver.find_element(By.CSS_SELECTOR, f"label[for='{r_id_for_label}']")
+                                            label_text = (label.text or "").strip()
+                                    except:
+                                        pass
+                                    logger.info(f"    [{i}] id='{r_id}', value='{r_value}', label='{label_text}'")
                         except Exception as e:
                             logger.warning(f"  ⚠️ 라디오 버튼 선택 실패: {str(e)}")
+                            import traceback
+                            logger.error(f"  상세 오류: {traceback.format_exc()}")
                     else:
                         element.clear()
                         element.send_keys(value)
                         logger.info(f"  ✓ 입력 완료: {value}")
                 
-                elif tag == "select":
+                elif tag == "select" or tag == "selection":
                     try:
+                        # 먼저 모든 옵션 확인 및 로깅
                         select = Select(element)
-                        # value로 선택 시도
-                        try:
-                            select.select_by_value(value)
-                            logger.info(f"  ✓ 셀렉트 박스 선택 완료 (value): {value}")
-                        except:
-                            # visible text로 선택 시도
+                        options = select.options
+                        logger.info(f"  📋 셀렉트 박스 옵션 개수: {len(options)}")
+                        for i, opt in enumerate(options[:5]):  # 처음 5개만 로깅
+                            opt_text = opt.text or ""
+                            opt_value = opt.get_attribute("value") or ""
+                            logger.info(f"    옵션 {i}: text='{opt_text}', value='{opt_value}'")
+                        
+                        # JavaScript로 직접 선택 시도 (가장 확실한 방법)
+                        target_index = None
+                        target_value = None
+                        
+                        # 옵션 검색
+                        for i, option in enumerate(options):
+                            option_text = (option.text or "").strip()
+                            option_value = (option.get_attribute("value") or "").strip()
+                            
+                            # 정확한 매칭
+                            if value == option_value or value == option_text:
+                                target_index = i
+                                target_value = option_value if option_value else option_text
+                                break
+                            # 부분 매칭 (대소문자 무시)
+                            elif value.lower() == option_value.lower() or value.lower() == option_text.lower():
+                                target_index = i
+                                target_value = option_value if option_value else option_text
+                                break
+                            # 포함 검색
+                            elif value.lower() in option_text.lower() or value.lower() in option_value.lower():
+                                target_index = i
+                                target_value = option_value if option_value else option_text
+                                break
+                        
+                        if target_index is not None:
+                            logger.info(f"  찾은 옵션: index={target_index}, value='{target_value}'")
+                            
+                            # JavaScript로 직접 선택 (Angular 앱에 가장 효과적)
+                            self.driver.execute_script("""
+                                var select = arguments[0];
+                                var targetIndex = arguments[1];
+                                var targetValue = arguments[2];
+                                
+                                // 옵션 선택
+                                select.selectedIndex = targetIndex;
+                                
+                                // 모든 관련 이벤트 발생
+                                var events = ['focus', 'click', 'change', 'blur'];
+                                events.forEach(function(eventType) {
+                                    var event = new Event(eventType, { bubbles: true, cancelable: true });
+                                    select.dispatchEvent(event);
+                                });
+                                
+                                // Angular ngModel 업데이트
+                                if (select.ngModelController) {
+                                    select.ngModelController.$setViewValue(targetValue);
+                                    select.ngModelController.$render();
+                                }
+                                
+                                // Angular FormControl 업데이트
+                                if (select.form && select.name) {
+                                    var formControl = select.form[select.name];
+                                    if (formControl) {
+                                        if (formControl.setValue) {
+                                            formControl.setValue(targetValue);
+                                        }
+                                        if (formControl.markAsTouched) {
+                                            formControl.markAsTouched();
+                                        }
+                                        if (formControl.markAsDirty) {
+                                            formControl.markAsDirty();
+                                        }
+                                    }
+                                }
+                                
+                                // Angular Reactive Forms (FormGroup)
+                                if (select.form && select.name) {
+                                    var formGroup = select.form;
+                                    if (formGroup.get && formGroup.get(select.name)) {
+                                        var control = formGroup.get(select.name);
+                                        if (control.setValue) {
+                                            control.setValue(targetValue);
+                                        }
+                                    }
+                                }
+                            """, element, target_index, target_value)
+                            
+                            time.sleep(0.5)
+                            
+                            # Selenium Select로도 시도 (이중 보장)
                             try:
-                                select.select_by_visible_text(value)
-                                logger.info(f"  ✓ 셀렉트 박스 선택 완료 (text): {value}")
+                                if target_value:
+                                    try:
+                                        select.select_by_value(target_value)
+                                    except:
+                                        try:
+                                            select.select_by_visible_text(target_value)
+                                        except:
+                                            select.select_by_index(target_index)
                             except:
-                                # index로 선택 시도
-                                options = select.options
-                                for i, option in enumerate(options):
-                                    if value in option.text or value in option.get_attribute("value"):
-                                        select.select_by_index(i)
-                                        logger.info(f"  ✓ 셀렉트 박스 선택 완료 (index): {value}")
-                                        break
+                                pass
+                            
+                            time.sleep(0.3)
+                            
+                            # 최종 확인
+                            current_value = element.get_attribute("value")
+                            current_selected_index = element.get_attribute("selectedIndex")
+                            
+                            if current_value == target_value or str(current_selected_index) == str(target_index):
+                                logger.info(f"  ✓ 셀렉트 박스 선택 완료: {target_value}")
+                            else:
+                                logger.warning(f"  ⚠️ 선택 확인 실패. 현재 값: {current_value}, 기대 값: {target_value}")
+                                # 최종 강제 설정
+                                self.driver.execute_script("""
+                                    var select = arguments[0];
+                                    var targetIndex = arguments[1];
+                                    select.selectedIndex = targetIndex;
+                                    select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                """, element, target_index)
+                                time.sleep(0.3)
+                        else:
+                            logger.warning(f"  ⚠️ 셀렉트 박스에서 값을 찾을 수 없습니다: {value}")
+                            # 모든 옵션 로깅
+                            logger.info(f"  사용 가능한 옵션:")
+                            for i, opt in enumerate(options):
+                                opt_text = opt.text or ""
+                                opt_value = opt.get_attribute("value") or ""
+                                logger.info(f"    [{i}] text='{opt_text}', value='{opt_value}'")
+                            
                     except Exception as e:
                         logger.warning(f"  ⚠️ 셀렉트 박스 선택 실패: {str(e)}")
+                        import traceback
+                        logger.error(f"  상세 오류: {traceback.format_exc()}")
                 
                 time.sleep(0.5)  # 각 필드 입력 사이 대기
             
@@ -571,8 +962,15 @@ class BrowserAutomation:
         try:
             if button_selectors is None:
                 button_selectors = [
+                    # "Save and continue" 텍스트를 포함하는 버튼 (대소문자 무시)
+                    (By.XPATH, "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'save')]"),
+                    # "Save" 텍스트를 포함하는 버튼
                     (By.XPATH, "//button[contains(text(), 'Save') or contains(text(), '저장')]"),
+                    # type="submit"인 버튼 중에서 "Save" 텍스트 포함
+                    (By.XPATH, "//button[@type='submit' and contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'save')]"),
+                    # type="submit"인 모든 버튼
                     (By.CSS_SELECTOR, "button[type='submit']"),
+                    # 기타 선택자들
                     (By.NAME, "save"),
                     (By.ID, "save"),
                     (By.CSS_SELECTOR, "button.btn-primary"),
@@ -582,27 +980,170 @@ class BrowserAutomation:
             save_btn = self.find_element_multiple_ways(button_selectors, wait_for_clickable=True, timeout=10)
             
             if not save_btn:
+                logger.warning("Save 버튼을 찾을 수 없습니다. 모든 버튼 검색 중...")
+                # 모든 submit 버튼 찾기
+                try:
+                    all_submit_buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[type='submit']")
+                    logger.info(f"  발견된 submit 버튼 개수: {len(all_submit_buttons)}")
+                    for i, btn in enumerate(all_submit_buttons):
+                        btn_text = (btn.text or "").strip()
+                        logger.info(f"    버튼 {i+1}: text='{btn_text}'")
+                        if "save" in btn_text.lower():
+                            save_btn = btn
+                            logger.info(f"  ✓ 'Save' 텍스트를 포함한 버튼 발견: '{btn_text}'")
+                            break
+                except Exception as e:
+                    logger.error(f"  버튼 검색 중 오류: {str(e)}")
+            
+            if not save_btn:
                 logger.warning("Save 버튼을 찾을 수 없습니다.")
                 self.save_debug_info("save_button_not_found")
                 return False
             
+            # 버튼 정보 로깅
+            btn_text = (save_btn.text or "").strip()
+            btn_type = save_btn.get_attribute("type") or ""
+            logger.info(f"  찾은 Save 버튼: text='{btn_text}', type='{btn_type}'")
+            
+            # 현재 URL 저장 (저장 후 변경 확인용)
+            current_url = self.driver.current_url
+            logger.info(f"  저장 전 URL: {current_url}")
+            
             # 스크롤하여 버튼이 보이도록
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", save_btn)
-            time.sleep(1)
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", save_btn)
+            time.sleep(0.5)
             
-            # JavaScript로 클릭 시도
+            # 버튼이 클릭 가능할 때까지 대기
             try:
-                self.driver.execute_script("arguments[0].click();", save_btn)
-                logger.info("Save 버튼 클릭 완료 (JavaScript)")
+                WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable(save_btn))
             except:
-                save_btn.click()
-                logger.info("Save 버튼 클릭 완료 (일반)")
+                pass
             
-            time.sleep(3)  # 저장 후 페이지 로드 대기
+            # form 찾기 (있는 경우)
+            form_element = None
+            try:
+                form_element = save_btn.find_element(By.XPATH, "./ancestor::form[1]")
+                logger.info("  form 요소 발견")
+            except:
+                try:
+                    form_element = self.driver.find_element(By.TAG_NAME, "form")
+                    logger.info("  페이지의 form 요소 발견")
+                except:
+                    pass
+            
+            # 방법 1: form 직접 제출 시도 (가장 확실한 방법)
+            if form_element:
+                try:
+                    logger.info("  form 직접 제출 시도...")
+                    self.driver.execute_script("""
+                        var form = arguments[0];
+                        var button = arguments[1];
+                        
+                        // Angular 폼 제출
+                        if (form.ngForm) {
+                            form.ngForm.ngSubmit.emit();
+                        }
+                        
+                        // Angular Reactive Forms
+                        if (form.ngFormGroup) {
+                            form.ngFormGroup.markAllAsTouched();
+                        }
+                        
+                        // form 제출
+                        if (form.requestSubmit) {
+                            form.requestSubmit(button);
+                        } else {
+                            form.submit();
+                        }
+                    """, form_element, save_btn)
+                    logger.info("  form 제출 완료 (JavaScript)")
+                    time.sleep(2)
+                except Exception as e:
+                    logger.warning(f"  form 제출 실패: {str(e)}")
+            
+            # 방법 2: JavaScript로 버튼 클릭 (이중 보장)
+            try:
+                self.driver.execute_script("""
+                    var button = arguments[0];
+                    
+                    // 포커스
+                    button.focus();
+                    
+                    // 클릭 이벤트 발생
+                    var clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0
+                    });
+                    button.dispatchEvent(clickEvent);
+                    
+                    // submit 이벤트도 발생 (form이 있는 경우)
+                    if (button.form) {
+                        var submitEvent = new Event('submit', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        button.form.dispatchEvent(submitEvent);
+                    }
+                """, save_btn)
+                logger.info("  Save 버튼 클릭 완료 (JavaScript)")
+                time.sleep(1)
+            except Exception as e:
+                logger.warning(f"  JavaScript 클릭 실패, 일반 클릭 시도: {str(e)}")
+                try:
+                    save_btn.click()
+                    logger.info("  Save 버튼 클릭 완료 (일반)")
+                    time.sleep(1)
+                except Exception as e2:
+                    logger.error(f"  일반 클릭도 실패: {str(e2)}")
+            
+            # 저장 후 대기 및 확인
+            logger.info("  저장 후 대기 중...")
+            time.sleep(2)
+            
+            # 페이지 전환 확인
+            try:
+                # URL 변경 확인
+                new_url = self.driver.current_url
+                if new_url != current_url:
+                    logger.info(f"  ✓ 페이지 전환 확인: {new_url}")
+                else:
+                    logger.info("  URL 변경 없음 (같은 페이지)")
+                
+                # 성공 메시지나 특정 요소 확인 시도
+                try:
+                    # 성공 메시지 찾기
+                    success_indicators = [
+                        "//*[contains(text(), 'saved') or contains(text(), '저장') or contains(text(), 'success')]",
+                        "//*[contains(@class, 'success') or contains(@class, 'alert-success')]"
+                    ]
+                    for indicator in success_indicators:
+                        try:
+                            success_element = WebDriverWait(self.driver, 2).until(
+                                EC.presence_of_element_located((By.XPATH, indicator))
+                            )
+                            if success_element:
+                                logger.info(f"  ✓ 저장 성공 메시지 발견")
+                                break
+                        except:
+                            continue
+                except:
+                    pass
+                
+            except Exception as e:
+                logger.warning(f"  페이지 전환 확인 중 오류: {str(e)}")
+            
+            # 추가 대기 (헤드리스 모드에서 더 긴 대기 필요)
+            time.sleep(3)
+            
+            logger.info("  저장 프로세스 완료")
             return True
             
         except Exception as e:
             logger.error(f"Save 버튼 클릭 중 오류: {str(e)}")
+            import traceback
+            logger.error(f"상세 오류: {traceback.format_exc()}")
             return False
     
     def close(self):
