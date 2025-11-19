@@ -1,4 +1,4 @@
-"""PDF 처리 라우터"""
+"""PDF 자동화 라우터"""
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse
 import logging
@@ -11,11 +11,11 @@ from app.models.schemas import FillPdfRequest, ExtractFieldTypesRequest, Extract
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["PDF 처리"])
+router = APIRouter(tags=["PDF 자동화"])
 
 
 @router.post(
-    "/upload-and-extract",
+    "/pdf/upload-and-extract",
     summary="PDF 필드 추출",
     description="""
     PDF 파일을 업로드하고 XFA 폼의 필드 구조를 추출하여 JSON으로 반환합니다.
@@ -44,7 +44,7 @@ async def upload_and_extract_endpoint(
 
 
 @router.post(
-    "/fill-pdf",
+    "/pdf/fill-pdf",
     summary="PDF 필드 채우기",
     description="""
     JSON 데이터를 사용하여 PDF 폼의 필드를 채우고 채워진 PDF 파일을 다운로드합니다.
@@ -54,7 +54,7 @@ async def upload_and_extract_endpoint(
     - 채워진 PDF 파일을 다운로드
     
     **주의사항:**
-    - 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
+    - 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
     - `fields` 구조는 추출된 필드 구조와 일치해야 합니다.
     """,
     response_description="채워진 PDF 파일 (application/pdf)"
@@ -72,7 +72,7 @@ async def fill_pdf_endpoint(
 
 
 @router.post(
-    "/extract-field-types",
+    "/pdf/extract-field-types",
     summary="PDF 필드 타입 추출",
     description="""
     업로드된 PDF 파일에서 필드 타입, 옵션, 포맷 정보를 추출합니다.
@@ -82,7 +82,7 @@ async def fill_pdf_endpoint(
     - date/time 필드의 포맷 정보
     
     **주의사항:**
-    - 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
+    - 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
     
     **응답 예시:**
     ```json
@@ -118,7 +118,7 @@ async def extract_field_types_endpoint(
     if not file_path.exists():
         raise HTTPException(
             status_code=404,
-            detail=f"파일 '{request.filename}'을 찾을 수 없습니다. 먼저 /upload-and-extract로 파일을 업로드해주세요."
+            detail=f"파일 '{request.filename}'을 찾을 수 없습니다. 먼저 /pdf/upload-and-extract로 파일을 업로드해주세요."
         )
     
     try:
@@ -143,7 +143,7 @@ async def extract_field_types_endpoint(
 
 
 @router.post(
-    "/extract-field-values",
+    "/pdf/extract-field-values",
     summary="PDF 필드 값 추출",
     description="""
     업로드된 PDF 파일에서 필드 키와 실제 값을 모두 추출합니다.
@@ -153,7 +153,7 @@ async def extract_field_types_endpoint(
     - 빈 필드는 빈 문자열로 표시
     
     **주의사항:**
-    - 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
+    - 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
     
     **응답 예시:**
     ```json
@@ -187,7 +187,7 @@ async def extract_field_values_endpoint(
     if not file_path.exists():
         raise HTTPException(
             status_code=404,
-            detail=f"파일 '{request.filename}'을 찾을 수 없습니다. 먼저 /upload-and-extract로 파일을 업로드해주세요."
+            detail=f"파일 '{request.filename}'을 찾을 수 없습니다. 먼저 /pdf/upload-and-extract로 파일을 업로드해주세요."
         )
     
     try:

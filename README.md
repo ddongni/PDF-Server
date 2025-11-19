@@ -16,11 +16,13 @@ pdf_server/
 │   │   └── schemas.py           # Pydantic 스키마
 │   ├── routers/                 # API 라우터
 │   │   ├── health.py            # Health check 엔드포인트
-│   │   └── pdf.py               # PDF 처리 엔드포인트
+│   │   ├── pdf.py               # PDF 자동화 엔드포인트
+│   │   └── potal.py             # 포털 자동화 엔드포인트
 │   ├── services/                # 비즈니스 로직
 │   │   ├── pdf_extract_service.py      # PDF 필드 추출 서비스
 │   │   ├── pdf_field_type_service.py   # 필드 타입 추출 서비스
-│   │   └── pdf_filler_service.py       # PDF 채우기 서비스
+│   │   ├── pdf_filler_service.py       # PDF 채우기 서비스
+│   │   └── potal_automation.py        # 포털 자동화 서비스
 │   ├── utils/                   # 유틸리티 함수
 │   │   └── utils.py             # 공통 유틸리티 (XFA 추출/주입, XML 파싱)
 │   └── main.py                  # 애플리케이션 진입점
@@ -63,12 +65,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 1. **Docker 이미지 빌드:**
 ```bash
-docker build -t pdf-server .
+docker build -t form-server .
 ```
 
 2. **컨테이너 실행:**
 ```bash
-docker run -d -p 8000:8000 --name pdf-server pdf-server
+docker run -d -p 8000:8000 --name form-server form-server
 ```
 
 ## 📖 API 사용 방법
@@ -92,13 +94,13 @@ GET http://localhost:8000/
 
 ---
 
-### 2. PDF 필드 추출 (`/upload-and-extract`)
+### 2. PDF 필드 추출 (`/pdf/upload-and-extract`)
 
 PDF 파일을 업로드하고 XFA 폼의 필드 구조를 추출하여 JSON으로 반환합니다.
 
 **요청:**
 ```bash
-POST http://localhost:8000/upload-and-extract
+POST http://localhost:8000/pdf/upload-and-extract
 Content-Type: multipart/form-data
 
 file: [PDF 파일]
@@ -106,7 +108,7 @@ file: [PDF 파일]
 
 **cURL 예시:**
 ```bash
-curl -X POST "http://localhost:8000/upload-and-extract" \
+curl -X POST "http://localhost:8000/pdf/upload-and-extract" \
   -F "file=@IMM0800e.pdf"
 ```
 
@@ -139,13 +141,13 @@ curl -X POST "http://localhost:8000/upload-and-extract" \
 
 ---
 
-### 3. PDF 필드 채우기 (`/fill-pdf`)
+### 3. PDF 필드 채우기 (`/pdf/fill-pdf`)
 
 JSON 데이터를 사용하여 PDF 폼의 필드를 채우고 채워진 PDF 파일을 다운로드합니다.
 
 **요청:**
 ```bash
-POST http://localhost:8000/fill-pdf
+POST http://localhost:8000/pdf/fill-pdf
 Content-Type: application/json
 
 {
@@ -169,7 +171,7 @@ Content-Type: application/json
 
 **cURL 예시:**
 ```bash
-curl -X POST "http://localhost:8000/fill-pdf" \
+curl -X POST "http://localhost:8000/pdf/fill-pdf" \
   -H "Content-Type: application/json" \
   -d '{
     "filename": "IMM0800e.pdf",
@@ -194,18 +196,18 @@ curl -X POST "http://localhost:8000/fill-pdf" \
 - 채워진 PDF 파일 바이너리
 
 **주의사항:**
-- 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
+    - 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
 - `fields` 구조는 추출된 필드 구조와 일치해야 합니다.
 
 ---
 
-### 4. PDF 필드 타입 추출 (`/extract-field-types`)
+### 4. PDF 필드 타입 추출 (`/pdf/extract-field-types`)
 
 업로드된 PDF 파일에서 필드 타입, 옵션, 포맷 정보를 추출합니다.
 
 **요청:**
 ```bash
-POST http://localhost:8000/extract-field-types
+POST http://localhost:8000/pdf/extract-field-types
 Content-Type: application/json
 
 {
@@ -243,13 +245,13 @@ Content-Type: application/json
 
 ---
 
-### 5. PDF 필드 값 추출 (`/extract-field-values`)
+### 5. PDF 필드 값 추출 (`/pdf/extract-field-values`)
 
 업로드된 PDF 파일에서 필드 키와 실제 값을 모두 추출합니다.
 
 **요청:**
 ```bash
-POST http://localhost:8000/extract-field-values
+POST http://localhost:8000/pdf/extract-field-values
 Content-Type: application/json
 
 {
@@ -286,13 +288,13 @@ Content-Type: application/json
 
 ### 1단계: PDF 업로드 및 필드 추출
 ```bash
-curl -X POST "http://localhost:8000/upload-and-extract" \
+curl -X POST "http://localhost:8000/pdf/upload-and-extract" \
   -F "file=@IMM0800e.pdf"
 ```
 
 ### 2단계: 필드 타입 확인 (선택사항)
 ```bash
-curl -X POST "http://localhost:8000/extract-field-types" \
+curl -X POST "http://localhost:8000/pdf/extract-field-types" \
   -H "Content-Type: application/json" \
   -d '{"filename": "IMM0800e.pdf"}'
 ```
@@ -302,7 +304,7 @@ curl -X POST "http://localhost:8000/extract-field-types" \
 
 ### 4단계: PDF 채우기
 ```bash
-curl -X POST "http://localhost:8000/fill-pdf" \
+curl -X POST "http://localhost:8000/pdf/fill-pdf" \
   -H "Content-Type: application/json" \
   -d '{
     "filename": "IMM0800e.pdf",
@@ -334,11 +336,17 @@ curl -X POST "http://localhost:8000/fill-pdf" \
 - 채워진 PDF에서 실제 값 추출
 - 필드 구조와 값 모두 포함
 
+### 포털 자동화
+- Selenium을 사용한 웹 브라우저 자동화
+- 로그인 및 폼 자동 채우기
+- Rate limiting 및 동시 실행 제한
+- Angular 앱 대기 및 페이지 로드 처리
+
 ---
 
 ## 📝 JSON 데이터 형식
 
-JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/upload-and-extract` 엔드포인트로 추출한 필드 구조를 참고하여 데이터를 작성하세요.
+JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/pdf/upload-and-extract` 엔드포인트로 추출한 필드 구조를 참고하여 데이터를 작성하세요.
 
 **예시 (IMM0800e):**
 ```json
@@ -376,7 +384,7 @@ JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/upload-a
 ## ⚠️ 주의사항
 
 1. **PDF 파일 형식**: XFA(XML Forms Architecture) 기반 PDF만 지원합니다.
-2. **파일 업로드 순서**: PDF 채우기 전에 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
+2. **파일 업로드 순서**: PDF 채우기 전에 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드해야 합니다.
 3. **필드 구조 일치**: JSON 데이터의 구조가 추출된 필드 구조와 일치해야 합니다.
 4. **베이스 태그**: JSON의 최상위 키가 XFA 폼의 베이스 태그와 일치해야 합니다 (예: `IMM_0800`, `form1`).
 5. **JSON 경로**: JSON의 키 구조가 XFA 경로와 일치해야 합니다 (점(.)이 슬래시(/)로 변환됨).
@@ -386,7 +394,7 @@ JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/upload-a
 ## 🛠️ 문제 해결
 
 ### PDF 파일을 찾을 수 없음
-- 먼저 `/upload-and-extract` 엔드포인트로 PDF 파일을 업로드했는지 확인
+- 먼저 `/pdf/upload-and-extract` 엔드포인트로 PDF 파일을 업로드했는지 확인
 - `uploads/` 디렉토리에 해당 파일이 있는지 확인
 
 ### 필드가 채워지지 않음
@@ -396,7 +404,44 @@ JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/upload-a
 
 ### 필드 타입 추출 실패
 - PDF 파일이 XFA 형식인지 확인
-- 먼저 `/upload-and-extract` 엔드포인트로 파일을 업로드했는지 확인
+- 먼저 `/pdf/upload-and-extract` 엔드포인트로 파일을 업로드했는지 확인
+
+---
+
+### 6. 포털 프로필 업데이트 (`/potal/pr/profile`)
+
+포털 사이트에 로그인하고 프로필 페이지의 폼을 자동으로 채우는 API입니다.
+
+**요청:**
+```bash
+POST http://localhost:8000/potal/pr/profile
+```
+
+**cURL 예시:**
+```bash
+curl -X POST "http://localhost:8000/potal/pr/profile"
+```
+
+**응답 예시:**
+```json
+{
+  "success": true,
+  "message": "프로필 업데이트가 완료되었습니다.",
+  "save_button_clicked": true
+}
+```
+
+**특징:**
+- Rate Limit: 분당 5회
+- 동시 실행: 최대 2개
+- Selenium을 사용한 브라우저 자동화
+- 로그인 후 프로필 페이지로 이동하여 폼 자동 채우기
+- Save 버튼 자동 클릭
+
+**주의사항:**
+- Chrome 브라우저가 필요합니다
+- ChromeDriver가 자동으로 설치됩니다 (webdriver-manager 사용)
+- 동시 실행이 제한되어 있어 요청이 대기될 수 있습니다
 
 ---
 
@@ -407,6 +452,9 @@ JSON 파일은 필드 매핑 구조에 맞춰 작성해야 합니다. `/upload-a
 - **lxml**: XML 파싱
 - **pydantic**: 데이터 검증
 - **uvicorn**: ASGI 서버
+- **Selenium**: 브라우저 자동화
+- **webdriver-manager**: ChromeDriver 자동 관리
+- **slowapi**: Rate limiting
 
 ---
 

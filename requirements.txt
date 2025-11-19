@@ -4,5 +4,8 @@ pikepdf==10.0.1
 lxml==6.0.2
 pydantic==2.12.4
 python-multipart==0.0.20
+selenium>=4.15.0
+webdriver-manager>=4.0.0
+slowapi>=0.1.9
 
 

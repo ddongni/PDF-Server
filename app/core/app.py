@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.core.middleware import setup_cors
 from app.core.exceptions import validation_exception_handler
-from app.routers import health, pdf
+from app.routers import health, pdf, potal
 
 
 def create_app() -> FastAPI:
@@ -35,9 +35,30 @@ def create_app() -> FastAPI:
     setup_cors(app)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     
+    # Rate Limiter 설정 (프로필 라우터용)
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    
+    limiter = Limiter(key_func=get_remote_address)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+    
     # 라우터 등록
     app.include_router(health.router)
     app.include_router(pdf.router)
+    app.include_router(potal.router)
     
     return app
+
+
+def _rate_limit_exceeded_handler(request, exc):
+    """Rate limit 초과 시 예외 핸들러"""
+    from slowapi.errors import RateLimitExceeded
+    from slowapi import _rate_limit_exceeded_handler as slowapi_handler
+    return slowapi_handler(request, exc)
+
+
 
