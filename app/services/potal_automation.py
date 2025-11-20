@@ -13,129 +13,63 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 # 폼 데이터 정의
-PROFILE_FORM_DATA = {
-      "profileForm-correspondence" : {
-              "tag": "select",
-              "value": "English"
-	},
-      "profileForm-familyName" : {
-              "tag": "input",
-              "type": "text",
-              "value": "Jeongwook"
-      },
-      "personalDetailsForm-givenName" : {
-              "tag": "input",
-              "type": "text",
-              "value": "Kim",
-      },
-      "personalDetailsForm-dob" : {
-              "tag": "input",
-              "type": "text",
-              "value": "1992/11/14"
-      },
-      "postOfficeBox" : {
-              "tag": "input",
-              "type": "text",
-              "value": "123"
-      },
-      "apartmentUnit" : {
-              "tag": "input",
-              "type": "text",
-              "value": "3611"
-      },
-      "streetNumber" : {
-              "tag": "input",
-              "type": "text",
-              "value": "4168"
-      },
-      "streetName" : {
-              "tag": "input",
-              "type": "text",
-              "value": "Lougheed Hwy"
-      },
-      "city" : {
-              "tag": "input",
-              "type": "text",
-              "value": "Burnaby"
-      },
-      "country" : {
-              "tag": "select",
-              "value": "Canada"
-      },
-      "province" : {
-              "tag": "select",
-              "value": "BC"
-      },
-      "postalCode" : {
-              "tag": "input",
-              "type": "text",
-              "value": "V5C 0N9"
-      },
-      "residentialSameAsMailingAddress" : {
-              "tag": "input",
-              "type": "radio",
-              "value": "Yes"
-      }
-}
-
 # PROFILE_FORM_DATA = {
 #       "profileForm-correspondence" : {
 #               "tag": "select",
-#               "value": "French"
+#               "value": "English"
 # 	},
 #       "profileForm-familyName" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "Diana"
+#               "value": "Jeongwook"
 #       },
 #       "personalDetailsForm-givenName" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "Shin",
+#               "value": "Kim",
 #       },
 #       "personalDetailsForm-dob" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "1996/03/09"
+#               "value": "1992/11/14"
 #       },
 #       "postOfficeBox" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "1013"
+#               "value": "123"
 #       },
 #       "apartmentUnit" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "1602"
+#               "value": "3611"
 #       },
 #       "streetNumber" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "80"
+#               "value": "4168"
 #       },
 #       "streetName" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "Pangyo Daejang Ro"
+#               "value": "Lougheed Hwy"
 #       },
 #       "city" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "Seongnam"
+#               "value": "Burnaby"
 #       },
 #       "country" : {
 #               "tag": "select",
-#               "value": "Korea, South"
+#               "value": "Canada"
 #       },
-#       "district": {
-#               "tag": "input",
-#               "type": "text",
-#               "value": "Gyenggi-do"
+#       "province" : {
+#               "tag": "select",
+#               "value": "BC"
 #       },
 #       "postalCode" : {
 #               "tag": "input",
 #               "type": "text",
-#               "value": "12345"
+#               "value": "V5C 0N9"
 #       },
 #       "residentialSameAsMailingAddress" : {
 #               "tag": "input",
@@ -143,6 +77,72 @@ PROFILE_FORM_DATA = {
 #               "value": "Yes"
 #       }
 # }
+
+PROFILE_FORM_DATA = {
+      "profileForm-correspondence" : {
+              "tag": "select",
+              "value": "French"
+	},
+      "profileForm-familyName" : {
+              "tag": "input",
+              "type": "text",
+              "value": "Diana"
+      },
+      "personalDetailsForm-givenName" : {
+              "tag": "input",
+              "type": "text",
+              "value": "Shin",
+      },
+      "personalDetailsForm-dob" : {
+              "tag": "input",
+              "type": "text",
+              "value": "1996/03/09"
+      },
+      "postOfficeBox" : {
+              "tag": "input",
+              "type": "text",
+              "value": "1013"
+      },
+      "apartmentUnit" : {
+              "tag": "input",
+              "type": "text",
+              "value": "1602"
+      },
+      "streetNumber" : {
+              "tag": "input",
+              "type": "text",
+              "value": "80"
+      },
+      "streetName" : {
+              "tag": "input",
+              "type": "text",
+              "value": "Pangyo Daejang Ro"
+      },
+      "city" : {
+              "tag": "input",
+              "type": "text",
+              "value": "Seongnam"
+      },
+      "country" : {
+              "tag": "select",
+              "value": "Korea, South"
+      },
+      "district": {
+              "tag": "input",
+              "type": "text",
+              "value": "Gyenggi-do"
+      },
+      "postalCode" : {
+              "tag": "input",
+              "type": "text",
+              "value": "12345"
+      },
+      "residentialSameAsMailingAddress" : {
+              "tag": "input",
+              "type": "radio",
+              "value": "Yes"
+      }
+}
 
 class BrowserAutomation:
     def __init__(self):
@@ -507,7 +507,7 @@ class BrowserAutomation:
             return True
         return False
     
-    def fill_form_fields(self, form_data):
+    def fill_form_fields(self, form_data, progress_callback=None):
         """
         JSON 형식의 폼 데이터를 받아서 필드에 입력하는 함수
         
@@ -520,11 +520,23 @@ class BrowserAutomation:
                         "value": "값"
                     }
                 }
+            progress_callback: 진행 상황을 전달할 콜백 함수 (current, total, field_name) => None
         """
         try:
             logger.info("\n=== 폼 필드 입력 시작 ===")
             
+            total_fields = len(form_data)
+            current_field = 0
+            
             for field_name, field_info in form_data.items():
+                current_field += 1
+                
+                # 진행 상황 콜백 호출
+                if progress_callback:
+                    try:
+                        progress_callback(current_field, total_fields, field_name)
+                    except:
+                        pass
                 tag = field_info.get("tag", "input")
                 field_type = field_info.get("type", "text")
                 value = field_info.get("value") or field_info.get("Value", "")
