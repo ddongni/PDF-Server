@@ -12,7 +12,8 @@ import json
 from queue import Queue
 from threading import Thread
 
-from app.services.potal_automation import BrowserAutomation, PROFILE_FORM_DATA
+from app.services.potal_automation import BrowserAutomation, PROFILE_FORM_DATA, EE_PORTAL_FORM_ITEMS
+from app.models.schemas import EEPortalLoginRequest
 
 logger = logging.getLogger(__name__)
 
@@ -337,4 +338,159 @@ async def update_profile_stream(request: Request):
                 "X-Accel-Buffering": "no"
             }
         )
+
+
+@router.post(
+    "/potal/ee/profile",
+    summary="EE 포털 프로필 업데이트 (2FA 지원)",
+    description="""
+    EE 포털 프로필 페이지에 로그인하고 폼을 자동으로 채우는 API
+    
+    - 2FA(2단계 인증) 지원: 이메일로 받은 코드를 입력
+    - Rate Limit: 분당 5회
+    - 동시 실행: 최대 2개
+    - 로그인 후 프로필 페이지로 이동하여 폼 자동 채우기
+    
+    **사용 방법:**
+    1. 첫 번째 요청: `two_factor_code` 없이 요청 (이메일로 코드 발송)
+    2. 이메일에서 2FA 코드 확인
+    3. 두 번째 요청: `two_factor_code`에 코드를 포함하여 요청
+    """,
+    response_description="EE 포털 프로필 업데이트 결과"
+)
+async def update_ee_profile(login_request: EEPortalLoginRequest):
+    """
+    EE 포털 프로필 페이지에 로그인하고 폼을 자동으로 채우는 API (2FA 지원)
+    """
+    async with max_concurrent:
+        automation = None
+        try:
+            logger.info("EE 포털 프로필 업데이트 작업 시작")
+            
+            # 브라우저 자동화 시작
+            automation = BrowserAutomation()
+            
+            try:
+                # EE 포털 로그인 URL
+                login_url = "https://onlineservices-servicesenligne-cic.fjgc-gccf.gc.ca/mycic/gccf?lang=eng&idp=gckey&svc=/mycic/start"
+                
+                # EE 포털 로그인 필드 선택자
+                email_selectors = [
+                    (By.NAME, "token1"),
+                ]
+                password_selectors = [
+                    (By.NAME, "token2"),
+                ]
+                login_button_selectors = [
+                    (By.CSS_SELECTOR, "button[type='submit']"),
+                ]
+                
+                # 2FA 코드가 없으면 로그인만 시도하고 코드 필요 메시지 반환
+                if not login_request.two_factor_code:
+                    logger.info("로그인 중... (2FA 코드 없음)")
+                    # email 필드에 username이 들어올 수 있음
+                    automation.login(
+                        url=login_url,
+                        email=login_request.email,  # 실제로는 username
+                        password=login_request.password,
+                        email_selectors=email_selectors,
+                        password_selectors=password_selectors,
+                        login_button_selectors=login_button_selectors
+                    )
+                    
+                    # 2FA 코드 입력 필드 확인
+                    needs_2fa = not automation.handle_2fa(code=None, timeout=5)
+                    
+                    if needs_2fa:
+                        return JSONResponse(
+                            status_code=200,
+                            content={
+                                "success": False,
+                                "message": "2FA 코드가 필요합니다. 이메일에서 코드를 확인한 후 two_factor_code 필드에 입력하여 다시 요청하세요.",
+                                "requires_2fa": True,
+                                "status": "waiting_for_2fa"
+                            }
+                        )
+                else:
+                    # 2FA 코드가 있으면 로그인 + 2FA 처리
+                    logger.info("로그인 및 2FA 처리 중...")
+                    # email 필드에 username이 들어올 수 있음
+                    login_success = automation.login_with_2fa(
+                        url=login_url,
+                        email=login_request.email,  # 실제로는 username
+                        password=login_request.password,
+                        two_factor_code=login_request.two_factor_code,
+                        email_selectors=email_selectors,
+                        password_selectors=password_selectors,
+                        login_button_selectors=login_button_selectors
+                    )
+                    
+                    if not login_success:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": "2FA 코드가 필요하거나 잘못되었습니다.",
+                                "requires_2fa": True
+                            }
+                        )
+                
+                # 지원 시작 페이지로 이동
+                app_url = "https://onlineservices-servicesenligne.cic.gc.ca/eapp/eapp"
+                logger.info(f"지원 시작 페이지로 이동: {app_url}")
+                automation.driver.get(app_url)
+                
+                # 페이지 로드 대기
+                WebDriverWait(automation.driver, 20).until(
+                    lambda driver: driver.execute_script("return document.readyState") == "complete"
+                )
+                time.sleep(3)
+                
+                # 하드코딩된 폼 데이터로 순차적으로 처리
+                logger.info("순차적 폼 필드 입력 시작...")
+                automation.fill_form_sequential(EE_PORTAL_FORM_ITEMS)
+                logger.info("순차적 폼 필드 입력 완료")
+                
+                logger.info("작업 완료. 10초 후 브라우저가 종료됩니다.")
+                time.sleep(10)  # 10초 대기
+                
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "success": True,
+                        "message": "EE 포털 자동화 작업이 완료되었습니다.",
+                        "form_items_processed": len(EE_PORTAL_FORM_ITEMS)
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"작업 중 오류 발생: {str(e)}")
+                if automation:
+                    automation.save_debug_info("ee_api_error")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"자동화 작업 중 오류가 발생했습니다: {str(e)}"
+                )
+            finally:
+                # 브라우저 종료 (리소스 해제)
+                if automation:
+                    try:
+                        automation.close()
+                        logger.info("브라우저 종료 완료")
+                    except Exception as e:
+                        logger.error(f"브라우저 종료 중 오류: {str(e)}")
+                        
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"API 오류: {str(e)}")
+            if automation:
+                try:
+                    automation.close()
+                except:
+                    pass
+            raise HTTPException(
+                status_code=500,
+                detail=f"서버 오류: {str(e)}"
+            )
 

@@ -1,6 +1,7 @@
 """브라우저 자동화 서비스"""
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -144,6 +145,151 @@ PROFILE_FORM_DATA = {
       }
 }
 
+# EE 포털 폼 데이터 (하드코딩)
+EE_PORTAL_FORM_ITEMS = [
+    {
+        "name": "answerList[0].value",
+        "tag": "select",
+        "value": "Britisch Columbia"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[1].value",
+        "tag": "select",
+        "value": "CELPIP"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[2].value",
+        "tag": "select",
+        "value": "2025"
+    },
+    {
+        "name": "answerList[3].value",
+        "tag": "select",
+        "value": "November"
+    },
+    {
+        "name": "answerList[4].value",
+        "tag": "select",
+        "value": "09"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[1].value",
+        "tag": "select",
+        "value": "7"
+    },
+    {
+        "name": "answerList[2].value",
+        "tag": "select",
+        "value": "7"
+    },
+    {
+        "name": "answerList[3].value",
+        "tag": "select",
+        "value": "7"
+    },
+    {
+        "name": "answerList[4].value",
+        "tag": "select",
+        "value": "7"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[1].value",
+        "tag": "select",
+        "value": "None"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[1].value",
+        "tag": "select",
+        "value": "One year or more"
+    },
+    {
+        "name": "answerList[2].value",
+        "tag": "select",
+        "value": "TEER Category 1"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "tag": "a",
+        "value": "Continue"
+    },
+    {
+        "name": "answerList[1].value",
+        "tag": "input",
+        "type": "text",
+        "value": "Shin"
+    },
+    {
+        "name": "answerList[2].value",
+        "tag": "input",
+        "type": "text",
+        "value": "DongEun"
+    },
+    {
+        "name": "answerList[3].value",
+        "tag": "select",
+        "value": "Female"
+    },
+    {
+        "name": "answerList[5].value",
+        "tag": "select",
+        "value": "1996"
+    },
+    {
+        "name": "answerList[6].value",
+        "tag": "select",
+        "value": "March"
+    },
+    {
+        "name": "answerList[7].value",
+        "tag": "select",
+        "value": "09"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    },
+    {
+        "name": "answerList[0].value",
+        "tag": "select",
+        "value": "Never Married/Single"
+    },
+    {
+        "name": "_next",
+        "tag": "input",
+        "type": "submit"
+    }
+]
+
 class BrowserAutomation:
     def __init__(self):
         """브라우저 자동화 클래스 초기화"""
@@ -154,6 +300,7 @@ class BrowserAutomation:
         """Chrome 드라이버 설정"""
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
+        options.add_argument("--incognito")  # 시크릿 모드로 열기
         
         # 도커 환경 감지 (chromium이 시스템에 설치되어 있으면 도커 환경)
         is_docker = os.path.exists("/usr/bin/chromium")
@@ -342,10 +489,15 @@ class BrowserAutomation:
             except Exception as e:
                 pass
             
-            # 기본 선택자 - name 속성만 사용
+            # 기본 선택자 - username 또는 email 필드
             if email_selectors is None:
                 email_selectors = [
                     (By.NAME, "username"),
+                    (By.NAME, "email"),
+                    (By.ID, "username"),
+                    (By.ID, "email"),
+                    (By.CSS_SELECTOR, "input[type='text'][name*='user' i]"),
+                    (By.CSS_SELECTOR, "input[type='text'][name*='email' i]"),
                 ]
             
             if password_selectors is None:
@@ -466,6 +618,146 @@ class BrowserAutomation:
         except Exception as e:
             logger.error(f"로그인 중 오류 발생: {str(e)}")
             self.save_debug_info("login_error")
+            raise
+    
+    def handle_2fa(self, code=None, code_selectors=None, submit_selectors=None, timeout=60):
+        """
+        2FA 코드 입력 처리 함수
+        
+        Args:
+            code: 2FA 코드 (None이면 대기 상태로 전환)
+            code_selectors: 코드 입력 필드를 찾을 선택자 리스트
+            submit_selectors: 제출 버튼을 찾을 선택자 리스트
+            timeout: 코드 입력 필드가 나타날 때까지 대기 시간 (초)
+        
+        Returns:
+            True: 2FA 처리 완료, False: 코드가 필요함
+        """
+        try:
+            logger.info("2FA 코드 입력 필드 감지 중...")
+            
+            # 기본 선택자
+            if code_selectors is None:
+                code_selectors = [
+                    (By.NAME, "code"),
+                    (By.NAME, "verificationCode"),
+                    (By.NAME, "twoFactorCode"),
+                    (By.ID, "code"),
+                    (By.ID, "verificationCode"),
+                    (By.CSS_SELECTOR, "input[type='text'][placeholder*='code' i]"),
+                    (By.CSS_SELECTOR, "input[type='text'][placeholder*='Code' i]"),
+                    (By.CSS_SELECTOR, "input[type='text'][name*='code' i]"),
+                    (By.CSS_SELECTOR, "input[type='text'][id*='code' i]"),
+                ]
+            
+            if submit_selectors is None:
+                submit_selectors = [
+                    (By.CSS_SELECTOR, "button[type='submit']"),
+                    (By.XPATH, "//button[contains(text(), 'Verify') or contains(text(), '확인')]"),
+                    (By.XPATH, "//button[contains(text(), 'Submit') or contains(text(), '제출')]"),
+                    (By.XPATH, "//button[contains(text(), 'Continue') or contains(text(), '계속')]"),
+                    (By.CSS_SELECTOR, "button.btn-primary"),
+                ]
+            
+            # 2FA 코드 입력 필드 찾기 (최대 timeout 초 대기)
+            wait = WebDriverWait(self.driver, timeout)
+            code_field = None
+            
+            for by, value in code_selectors:
+                try:
+                    code_field = wait.until(EC.presence_of_element_located((by, value)))
+                    logger.info(f"2FA 코드 입력 필드 발견: {by}={value}")
+                    break
+                except:
+                    continue
+            
+            if not code_field:
+                logger.info("2FA 코드 입력 필드를 찾을 수 없습니다. (2FA가 필요하지 않을 수 있습니다)")
+                return True  # 2FA가 필요 없으면 성공으로 처리
+            
+            # 코드가 제공되지 않았으면 False 반환 (코드 필요)
+            if not code:
+                logger.warning("2FA 코드가 필요하지만 제공되지 않았습니다.")
+                return False
+            
+            # 코드 입력
+            logger.info("2FA 코드 입력 중...")
+            code_field.clear()
+            time.sleep(0.5)
+            code_field.send_keys(code)
+            logger.info("2FA 코드 입력 완료")
+            
+            # 제출 버튼 찾기 및 클릭
+            submit_btn = self.find_element_multiple_ways(submit_selectors, wait_for_clickable=True, timeout=10)
+            if submit_btn:
+                # 스크롤하여 버튼이 보이도록
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn)
+                time.sleep(0.5)
+                
+                # JavaScript로 클릭 시도
+                try:
+                    self.driver.execute_script("arguments[0].click();", submit_btn)
+                    logger.info("2FA 제출 버튼 클릭 완료 (JavaScript)")
+                except:
+                    submit_btn.click()
+                    logger.info("2FA 제출 버튼 클릭 완료 (일반)")
+                
+                # 제출 후 페이지 로드 대기
+                time.sleep(5)
+                logger.info("2FA 검증 완료")
+                return True
+            else:
+                logger.warning("2FA 제출 버튼을 찾을 수 없습니다. (Enter 키로 시도)")
+                # Enter 키로 제출 시도
+                code_field.send_keys(Keys.RETURN)
+                time.sleep(5)
+                return True
+                
+        except Exception as e:
+            logger.error(f"2FA 처리 중 오류 발생: {str(e)}")
+            self.save_debug_info("2fa_error")
+            raise
+    
+    def login_with_2fa(self, url, email, password, two_factor_code=None,
+                      email_selectors=None, 
+                      password_selectors=None, 
+                      login_button_selectors=None,
+                      code_selectors=None,
+                      submit_selectors=None):
+        """
+        2FA가 필요한 로그인 자동화 함수
+        
+        Args:
+            url: 로그인 페이지 URL
+            email: 이메일 주소
+            password: 비밀번호
+            two_factor_code: 2FA 코드 (선택사항, None이면 2FA 필드 감지만 수행)
+            email_selectors: 이메일 필드를 찾을 선택자 리스트
+            password_selectors: 비밀번호 필드를 찾을 선택자 리스트
+            login_button_selectors: 로그인 버튼을 찾을 선택자 리스트
+            code_selectors: 2FA 코드 입력 필드를 찾을 선택자 리스트
+            submit_selectors: 2FA 제출 버튼을 찾을 선택자 리스트
+        
+        Returns:
+            True: 로그인 완료, False: 2FA 코드가 필요함
+        """
+        try:
+            # 일반 로그인 수행
+            self.login(url, email, password, 
+                      email_selectors=email_selectors,
+                      password_selectors=password_selectors,
+                      login_button_selectors=login_button_selectors)
+            
+            # 2FA 처리
+            result = self.handle_2fa(code=two_factor_code,
+                                    code_selectors=code_selectors,
+                                    submit_selectors=submit_selectors)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"2FA 로그인 중 오류 발생: {str(e)}")
+            self.save_debug_info("login_with_2fa_error")
             raise
     
     def find_element_safe(self, by, value, timeout=10):
@@ -1157,6 +1449,193 @@ class BrowserAutomation:
             import traceback
             logger.error(f"상세 오류: {traceback.format_exc()}")
             return False
+    
+    def fill_form_sequential(self, form_items, progress_callback=None):
+        """
+        JSON 배열을 순서대로 처리하여 폼을 채우는 함수
+        
+        Args:
+            form_items: 딕셔너리 리스트 형태의 폼 데이터
+                예: [
+                    {"name": "answerList[0].value", "tag": "select", "value": "British Columbia"},
+                    {"name": "_next", "tag": "input", "type": "submit"},
+                    {"tag": "a", "value": "Continue"}
+                ]
+            progress_callback: 진행 상황을 전달할 콜백 함수 (current, total, item) => None
+        """
+        try:
+            logger.info("\n=== 순차적 폼 필드 입력 시작 ===")
+            
+            total_items = len(form_items)
+            current_item = 0
+            
+            for item in form_items:
+                current_item += 1
+                
+                # 진행 상황 콜백 호출
+                if progress_callback:
+                    try:
+                        progress_callback(current_item, total_items, item)
+                    except:
+                        pass
+                
+                tag = item.get("tag", "input")
+                field_name = item.get("name", "")
+                field_type = item.get("type", "text")
+                value = item.get("value", "")
+                
+                logger.info(f"\n[항목 {current_item}/{total_items}] 처리 중...")
+                logger.info(f"  Tag: {tag}, Name: {field_name}, Type: {field_type}, Value: {value}")
+                
+                # 페이지 로드 대기
+                try:
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: driver.execute_script("return document.readyState") == "complete"
+                    )
+                except:
+                    pass
+                
+                time.sleep(1)  # 페이지 안정화 대기
+                
+                # 태그 타입에 따라 처리
+                if tag == "select":
+                    # 셀렉트 박스 처리
+                    if not field_name:
+                        logger.warning("  ⚠️ name이 없어 셀렉트 박스를 찾을 수 없습니다.")
+                        continue
+                    
+                    element = self.find_element_safe(By.NAME, field_name, timeout=10)
+                    if not element:
+                        logger.warning(f"  ⚠️ 셀렉트 박스를 찾을 수 없습니다: {field_name}")
+                        continue
+                    
+                    try:
+                        # 요소가 보이도록 스크롤
+                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+                        time.sleep(0.5)
+                        
+                        select = Select(element)
+                        options = select.options
+                        
+                        # 옵션 검색
+                        target_index = None
+                        for i, option in enumerate(options):
+                            option_text = (option.text or "").strip()
+                            option_value = (option.get_attribute("value") or "").strip()
+                            
+                            if value == option_value or value == option_text:
+                                target_index = i
+                                break
+                            elif value.lower() == option_value.lower() or value.lower() == option_text.lower():
+                                target_index = i
+                                break
+                            elif value.lower() in option_text.lower() or value.lower() in option_value.lower():
+                                target_index = i
+                                break
+                        
+                        if target_index is not None:
+                            select.select_by_index(target_index)
+                            logger.info(f"  ✓ 셀렉트 박스 선택 완료: {value}")
+                        else:
+                            logger.warning(f"  ⚠️ 옵션을 찾을 수 없습니다: {value}")
+                    except Exception as e:
+                        logger.warning(f"  ⚠️ 셀렉트 박스 선택 실패: {str(e)}")
+                
+                elif tag == "input":
+                    if field_type == "submit":
+                        # 제출 버튼 클릭
+                        if not field_name:
+                            # name이 없으면 모든 submit 버튼 찾기
+                            submit_buttons = self.driver.find_elements(By.CSS_SELECTOR, "input[type='submit']")
+                            if submit_buttons:
+                                submit_btn = submit_buttons[0]
+                            else:
+                                logger.warning("  ⚠️ 제출 버튼을 찾을 수 없습니다.")
+                                continue
+                        else:
+                            submit_btn = self.find_element_safe(By.NAME, field_name, timeout=10)
+                            if not submit_btn:
+                                logger.warning(f"  ⚠️ 제출 버튼을 찾을 수 없습니다: {field_name}")
+                                continue
+                        
+                        try:
+                            # 스크롤하여 버튼이 보이도록
+                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_btn)
+                            time.sleep(0.5)
+                            
+                            # 클릭 가능할 때까지 대기
+                            WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable(submit_btn))
+                            
+                            # JavaScript로 클릭
+                            self.driver.execute_script("arguments[0].click();", submit_btn)
+                            logger.info(f"  ✓ 제출 버튼 클릭 완료: {field_name}")
+                            
+                            # 페이지 전환 대기
+                            time.sleep(3)
+                        except Exception as e:
+                            logger.warning(f"  ⚠️ 제출 버튼 클릭 실패: {str(e)}")
+                    
+                    elif field_type == "text":
+                        # 텍스트 입력
+                        if not field_name:
+                            logger.warning("  ⚠️ name이 없어 입력 필드를 찾을 수 없습니다.")
+                            continue
+                        
+                        element = self.find_element_safe(By.NAME, field_name, timeout=10)
+                        if not element:
+                            logger.warning(f"  ⚠️ 입력 필드를 찾을 수 없습니다: {field_name}")
+                            continue
+                        
+                        try:
+                            # 요소가 보이도록 스크롤
+                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+                            time.sleep(0.5)
+                            
+                            # 입력
+                            element.clear()
+                            time.sleep(0.2)
+                            element.send_keys(value)
+                            logger.info(f"  ✓ 텍스트 입력 완료: {value}")
+                        except Exception as e:
+                            logger.warning(f"  ⚠️ 텍스트 입력 실패: {str(e)}")
+                
+                elif tag == "a":
+                    # 링크 클릭
+                    try:
+                        # 텍스트로 링크 찾기
+                        link = self.find_element_safe(By.XPATH, f"//a[contains(text(), '{value}')]", timeout=10)
+                        if not link:
+                            # 부분 매칭 시도
+                            link = self.find_element_safe(By.XPATH, f"//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{value.lower()}')]", timeout=10)
+                        
+                        if link:
+                            # 스크롤하여 링크가 보이도록
+                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", link)
+                            time.sleep(0.5)
+                            
+                            # 클릭 가능할 때까지 대기
+                            WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable(link))
+                            
+                            # JavaScript로 클릭
+                            self.driver.execute_script("arguments[0].click();", link)
+                            logger.info(f"  ✓ 링크 클릭 완료: {value}")
+                            
+                            # 페이지 전환 대기
+                            time.sleep(3)
+                        else:
+                            logger.warning(f"  ⚠️ 링크를 찾을 수 없습니다: {value}")
+                    except Exception as e:
+                        logger.warning(f"  ⚠️ 링크 클릭 실패: {str(e)}")
+                
+                # 각 항목 처리 후 대기
+                time.sleep(1)
+            
+            logger.info("\n=== 순차적 폼 필드 입력 완료 ===\n")
+            
+        except Exception as e:
+            logger.error(f"순차적 폼 입력 중 오류 발생: {str(e)}")
+            self.save_debug_info("sequential_form_fill_error")
+            raise
     
     def close(self):
         """브라우저 종료"""
