@@ -51,22 +51,3 @@ class ExtractFieldValuesRequest(BaseModel):
             }
         }
 
-
-class EEPortalLoginRequest(BaseModel):
-    """EE 포털 로그인 요청 모델 (2FA 지원)
-    
-    폼 데이터는 하드코딩되어 있어 별도로 입력할 필요가 없습니다.
-    """
-    email: str  # 실제로는 username
-    password: str
-    two_factor_code: Optional[str] = None  # 2FA 코드 (선택사항, 필요시 입력)
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "your_username",
-                "password": "your_password",
-                "two_factor_code": "123456"
-            }
-        }
-

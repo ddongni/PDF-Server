@@ -40,10 +40,19 @@ def create_app() -> FastAPI:
     from slowapi.util import get_remote_address
     from slowapi.errors import RateLimitExceeded
     from slowapi.middleware import SlowAPIMiddleware
+    from fastapi.responses import JSONResponse
     
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request, exc):
+        """Rate limit 초과 시 예외 핸들러"""
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Rate limit exceeded", "detail": str(exc)}
+        )
+    
     app.add_middleware(SlowAPIMiddleware)
     
     # 라우터 등록
@@ -52,13 +61,6 @@ def create_app() -> FastAPI:
     app.include_router(potal.router)
     
     return app
-
-
-def _rate_limit_exceeded_handler(request, exc):
-    """Rate limit 초과 시 예외 핸들러"""
-    from slowapi.errors import RateLimitExceeded
-    from slowapi import _rate_limit_exceeded_handler as slowapi_handler
-    return slowapi_handler(request, exc)
 
 
 
