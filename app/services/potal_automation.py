@@ -8,71 +8,84 @@ from typing import Optional, List, Tuple, Dict, Any, Callable
 
 logger = logging.getLogger(__name__)
 
-PROFILE_FORM_DATA = {
-      "profileForm-correspondence" : {
+PROFILE_FORM_DATA = [
+    {
+        "name": "profileForm-correspondence",
               "tag": "select",
               "value": "French"
 	},
-      "profileForm-familyName" : {
+    {
+        "name": "profileForm-familyName",
               "tag": "input",
               "type": "text",
               "value": "Diana"
       },
-      "personalDetailsForm-givenName" : {
+     {
+        "name": "personalDetailsForm-givenName",
               "tag": "input",
               "type": "text",
               "value": "Shin",
       },
-      "personalDetailsForm-dob" : {
+      {
+        "name": "personalDetailsForm-dob",
               "tag": "input",
               "type": "text",
               "value": "1996/03/09"
       },
-      "postOfficeBox" : {
+      {
+        "name": "postOfficeBox",
               "tag": "input",
               "type": "text",
               "value": "1013"
       },
-      "apartmentUnit" : {
+      {
+        "name": "apartmentUnit",
               "tag": "input",
               "type": "text",
               "value": "1602"
       },
-      "streetNumber" : {
+      {
+        "name": "streetNumber",
               "tag": "input",
               "type": "text",
               "value": "80"
       },
-      "streetName" : {
+      {
+        "name": "streetName",
               "tag": "input",
               "type": "text",
               "value": "Pangyo Daejang Ro"
       },
-      "city" : {
+      {
+        "name": "city",
               "tag": "input",
               "type": "text",
               "value": "Seongnam"
       },
-      "country" : {
+      {
+        "name": "country",
               "tag": "select",
               "value": "Korea, South"
       },
-      "district": {
+      {
+        "name": "district",
               "tag": "input",
               "type": "text",
               "value": "Gyenggi-do"
       },
-      "postalCode" : {
+      {
+        "name": "postalCode",
               "tag": "input",
               "type": "text",
               "value": "12345"
       },
-      "residentialSameAsMailingAddress" : {
+      {
+        "name": "residentialSameAsMailingAddress",
               "tag": "input",
               "type": "radio",
               "value": "Yes"
       }
-}
+]
 
 # EE 포털 폼 데이터 (하드코딩)
 EE_PORTAL_FORM_ITEMS = [
@@ -364,7 +377,7 @@ class BrowserAutomation:
               email_selectors: Optional[List[Tuple[str, str]]] = None, 
               password_selectors: Optional[List[Tuple[str, str]]] = None, 
               login_button_selectors: Optional[List[Tuple[str, str]]] = None,
-              wait_for_angular: bool = False):
+              progress_callback: Optional[Callable[[str, Optional[Dict]], None]] = None):
         """
         로그인 자동화 함수
         
@@ -375,51 +388,49 @@ class BrowserAutomation:
             email_selectors: 이메일 필드를 찾을 선택자 리스트 [("name", "email"), ...]
             password_selectors: 비밀번호 필드를 찾을 선택자 리스트
             login_button_selectors: 로그인 버튼을 찾을 선택자 리스트
-            wait_for_angular: Angular 앱 로드 대기 여부 (PR 포털은 True, EE 포털은 False)
         """
         try:
-            # 페이지 로드 (재시도 로직 포함)
-            # IRCC가 URL을 리다이렉트할 수 있으므로 domcontentloaded 사용
-            max_retries = 3
-            for retry in range(max_retries):
-                try:
-                    # domcontentloaded로 먼저 로드 (리다이렉트 허용)
-                    await self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                    logger.info(f"페이지 로드 완료: {url} (현재 URL: {self.page.url})")
-                    
-                    # 리다이렉트 후 페이지 안정화를 위한 추가 대기
-                    await asyncio.sleep(2)
-                    
-                    # load 상태 확인 (선택적, 실패해도 계속 진행)
+            # 현재 URL 확인 - 이미 같은 페이지에 있으면 페이지 로드 건너뛰기
+            current_url = self.page.url
+            if current_url == url or url in current_url:
+                logger.info(f"이미 로그인 페이지에 있습니다. URL: {current_url}")
+                # 페이지가 이미 로드되어 있으므로 최소 대기만 수행
+                await asyncio.sleep(0.1)
+            else:
+                # 페이지 로드 (재시도 로직 포함)
+                # IRCC가 URL을 리다이렉트할 수 있으므로 domcontentloaded 사용
+                max_retries = 3
+                for retry in range(max_retries):
                     try:
-                        await self.page.wait_for_load_state("load", timeout=10000)
-                    except:
-                        logger.debug("load 상태 대기 시간 초과 (계속 진행)")
-                    
-                    break
-                except Exception as e:
-                    if retry < max_retries - 1:
-                        logger.warning(f"페이지 로드 실패 (재시도 {retry + 1}/{max_retries}): {str(e)}")
-                        await asyncio.sleep(1)
-                    else:
-                        logger.error(f"페이지 로드 최종 실패: {str(e)}")
-                        raise
+                        # domcontentloaded로 먼저 로드 (리다이렉트 허용)
+                        await self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        logger.info(f"페이지 로드 완료: {url} (현재 URL: {self.page.url})")
+                        
+                        # 리다이렉트 후 페이지 안정화를 위한 추가 대기
+                        await asyncio.sleep(0.2)
+                        
+                        # load 상태 확인 (선택적, 실패해도 계속 진행)
+                        try:
+                            await self.page.wait_for_load_state("load", timeout=5000)
+                        except:
+                            logger.debug("load 상태 대기 시간 초과 (계속 진행)")
+                        
+                        break
+                    except Exception as e:
+                        if retry < max_retries - 1:
+                            logger.warning(f"페이지 로드 실패 (재시도 {retry + 1}/{max_retries}): {str(e)}")
+                            await asyncio.sleep(0.3)
+                        else:
+                            logger.error(f"페이지 로드 최종 실패: {str(e)}")
+                            raise
             
-            # 네트워크 상태는 선택적으로 확인 (리다이렉트로 인해 실패할 수 있음)
+            # DOM 로드 상태 확인 (networkidle 대신 domcontentloaded 사용)
             try:
-                await self.page.wait_for_load_state("networkidle", timeout=10000)
+                await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
             except:
-                logger.debug("networkidle 대기 시간 초과 (리다이렉트로 인한 정상적인 경우일 수 있음, 계속 진행)")
+                logger.debug("domcontentloaded 대기 시간 초과 (리다이렉트로 인한 정상적인 경우일 수 있음, 계속 진행)")
             
-            # Angular 앱 로드 대기 (PR 포털만 필요)
-            if wait_for_angular:
-                try:
-                    await self.page.wait_for_selector("[class*='ng-'], input.form-input__field", timeout=10000)
-                    logger.info("Angular 앱 로드 완료 감지")
-                except:
-                    logger.warning("Angular 앱 로드 대기 시간 초과 (계속 진행)")
-            
-            await asyncio.sleep(0.5)  # 추가 대기 시간 단축
+            await asyncio.sleep(0.1)  # 최소 대기 시간
             
             # 기본 선택자
             if email_selectors is None:
@@ -459,7 +470,7 @@ class BrowserAutomation:
                     break
                 if retry < 2:
                     logger.warning(f"이메일 필드를 찾을 수 없음 (재시도 {retry + 1}/3)")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
             
             if not email_field:
                 logger.error("이메일 필드를 찾을 수 없습니다. 디버깅 정보를 저장합니다.")
@@ -467,18 +478,39 @@ class BrowserAutomation:
                 raise Exception("이메일 입력 필드를 찾을 수 없습니다.")
             
             logger.info("이메일 필드 찾기 성공. 입력 시작...")
+            
+            # 진행 상황 콜백 호출
+            if progress_callback:
+                try:
+                    if asyncio.iscoroutinefunction(progress_callback):
+                        await progress_callback("이메일 입력 중...", None)
+                    else:
+                        progress_callback("이메일 입력 중...", None)
+                except:
+                    pass
+            
             # 입력 필드에 포커스
             await email_field.focus()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.05)
             
             # 기존 값 제거
             await email_field.clear()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.05)
             
             # 값 입력 (여러 방법 시도)
             try:
                 await email_field.fill(email)
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.1)
+                
+                # 진행 상황 콜백 호출 (이메일 입력 후)
+                if progress_callback:
+                    try:
+                        if asyncio.iscoroutinefunction(progress_callback):
+                            await progress_callback("이메일 입력 완료", None)
+                        else:
+                            progress_callback("이메일 입력 완료", None)
+                    except:
+                        pass
                 
                 # 입력 확인
                 input_value = await email_field.input_value()
@@ -493,13 +525,13 @@ class BrowserAutomation:
                                 element.dispatchEvent(new Event('change', {{ bubbles: true }}));
                             }}
                         """, email)
-                        await asyncio.sleep(0.3)
+                        await asyncio.sleep(0.1)
                     except Exception as e:
                         logger.warning(f"JavaScript 입력 실패: {str(e)}")
             except Exception as e:
                 logger.warning(f"fill() 실패, type() 시도: {str(e)}")
                 await email_field.type(email, delay=50)
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.1)
             
             # 이메일 입력 최종 확인
             final_email = await email_field.input_value()
@@ -508,7 +540,7 @@ class BrowserAutomation:
                 # 재시도
                 await email_field.clear()
                 await email_field.fill(email)
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.1)
             else:
                 logger.info(f"이메일 입력 완료: {email}")
             
@@ -521,7 +553,7 @@ class BrowserAutomation:
                     break
                 if retry < 2:
                     logger.warning(f"비밀번호 필드를 찾을 수 없음 (재시도 {retry + 1}/3)")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
             
             if not password_field:
                 logger.error("비밀번호 필드를 찾을 수 없습니다. 디버깅 정보를 저장합니다.")
@@ -529,17 +561,41 @@ class BrowserAutomation:
                 raise Exception("비밀번호 입력 필드를 찾을 수 없습니다.")
             
             logger.info("비밀번호 필드 찾기 성공. 입력 시작...")
+            
+            # 진행 상황 콜백 호출
+            if progress_callback:
+                try:
+                    if asyncio.iscoroutinefunction(progress_callback):
+                        await progress_callback("비밀번호 입력 중...", None)
+                    else:
+                        progress_callback("비밀번호 입력 중...", None)
+                except:
+                    pass
+            
             # 입력 필드에 포커스
             await password_field.focus()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.05)
             
             # 기존 값 제거
             await password_field.clear()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.05)
             
             # 값 입력 (여러 방법 시도)
             try:
                 await password_field.fill(password)
+                await asyncio.sleep(0.2)  # 비밀번호 입력 후 화면 안정화 대기
+                
+                # 진행 상황 콜백 호출 (비밀번호 입력 후 - 스크린샷 촬영을 위해 먼저 호출)
+                if progress_callback:
+                    try:
+                        if asyncio.iscoroutinefunction(progress_callback):
+                            await progress_callback("비밀번호 입력 완료", None)
+                        else:
+                            progress_callback("비밀번호 입력 완료", None)
+                    except:
+                        pass
+                
+                # 스크린샷 촬영을 위한 추가 대기 (비밀번호 입력한 화면이 보이도록)
                 await asyncio.sleep(0.3)
                 
                 # 입력 확인 (비밀번호 필드는 보안상 확인하지 않을 수도 있음)
@@ -556,7 +612,7 @@ class BrowserAutomation:
                                     element.dispatchEvent(new Event('change', {{ bubbles: true }}));
                                 }}
                             """, password)
-                            await asyncio.sleep(0.3)
+                            await asyncio.sleep(0.1)
                         except Exception as e:
                             logger.warning(f"JavaScript 비밀번호 입력 실패: {str(e)}")
                 except:
@@ -564,6 +620,19 @@ class BrowserAutomation:
             except Exception as e:
                 logger.warning(f"fill() 실패, type() 시도: {str(e)}")
                 await password_field.type(password, delay=50)
+                await asyncio.sleep(0.2)
+                
+                # 진행 상황 콜백 호출 (type() 방식으로 입력한 경우)
+                if progress_callback:
+                    try:
+                        if asyncio.iscoroutinefunction(progress_callback):
+                            await progress_callback("비밀번호 입력 완료", None)
+                        else:
+                            progress_callback("비밀번호 입력 완료", None)
+                    except:
+                        pass
+                
+                # 스크린샷 촬영을 위한 추가 대기
                 await asyncio.sleep(0.3)
             
             logger.info("비밀번호 입력 완료")
@@ -576,16 +645,26 @@ class BrowserAutomation:
                     break
                 if retry < 2:
                     logger.warning(f"로그인 버튼을 찾을 수 없음 (재시도 {retry + 1}/3)")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
             
             if not login_btn:
                 logger.error("로그인 버튼을 찾을 수 없습니다. 디버깅 정보를 저장합니다.")
                 await self.save_debug_info("login_button_not_found")
                 raise Exception("로그인 버튼을 찾을 수 없습니다.")
             
+            # 진행 상황 콜백 호출
+            if progress_callback:
+                try:
+                    if asyncio.iscoroutinefunction(progress_callback):
+                        await progress_callback("로그인 버튼 클릭 준비 중...", None)
+                    else:
+                        progress_callback("로그인 버튼 클릭 준비 중...", None)
+                except:
+                    pass
+            
             # 스크롤하여 버튼이 보이도록
             await login_btn.scroll_into_view_if_needed()
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
             
             # 클릭 (여러 방법 시도)
             clicked = False
@@ -618,16 +697,16 @@ class BrowserAutomation:
                 raise Exception("로그인 버튼 클릭 실패")
             
             # 로그인 후 페이지 로드 대기
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.3)
             
             # URL 변경 감지 (로그인 성공 확인)
             initial_url = self.page.url
-            max_wait = 5  # 최대 5초 대기
+            max_wait = 3  # 최대 3초 대기 (5초 -> 3초)
             waited = 0
             
             while waited < max_wait:
                 try:
-                    await asyncio.sleep(0.5)  # 1초 -> 0.5초로 단축
+                    await asyncio.sleep(0.3)  # 0.5초 -> 0.3초로 단축
                     current_url = self.page.url
                     if current_url != initial_url:
                         logger.info(f"페이지 전환 확인: {initial_url} -> {current_url}")
@@ -636,14 +715,14 @@ class BrowserAutomation:
                 except:
                     break
             
-            # 네트워크 상태 대기
+            # DOM 로드 상태 확인 (networkidle 대신 domcontentloaded 사용)
             try:
-                await self.page.wait_for_load_state("networkidle", timeout=15000)  # 30초 -> 15초로 단축
+                await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
             except:
-                logger.warning("네트워크 유휴 상태 대기 시간 초과 (계속 진행)")
+                logger.warning("domcontentloaded 대기 시간 초과 (계속 진행)")
             
             # 추가 대기 (페이지 안정화)
-            await asyncio.sleep(1)  # 2초 -> 1초로 단축
+            await asyncio.sleep(0.1)  # 최소 대기 시간
             
             # 현재 URL 확인
             current_url = self.page.url
@@ -665,7 +744,8 @@ class BrowserAutomation:
             raise
     
     async def handle_2fa(self, code: Optional[str] = None, code_selectors: Optional[List[Tuple[str, str]]] = None, 
-                   submit_selectors: Optional[List[Tuple[str, str]]] = None, timeout: int = 60000):
+                   submit_selectors: Optional[List[Tuple[str, str]]] = None, timeout: int = 60000,
+                   progress_callback: Optional[Callable[[str, Optional[Dict]], None]] = None):
         """
         2FA 코드 입력 처리 함수
         
@@ -759,24 +839,34 @@ class BrowserAutomation:
             # 코드 입력
             logger.info("2FA 코드 입력 중...")
             await code_field.clear()
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)
             await code_field.fill(code)
             logger.info("2FA 코드 입력 완료")
             
+            # 진행 상황 콜백 호출 (코드 입력 후)
+            if progress_callback:
+                try:
+                    if asyncio.iscoroutinefunction(progress_callback):
+                        await progress_callback("2FA 코드 입력 완료", None)
+                    else:
+                        progress_callback("2FA 코드 입력 완료", None)
+                except:
+                    pass
+            
             # 제출 버튼 찾기 및 클릭
-            submit_btn = await self.find_element_multiple_ways(submit_selectors, wait_for_clickable=True, timeout=10000)
+            submit_btn = await self.find_element_multiple_ways(submit_selectors, wait_for_clickable=True, timeout=8000)
             if submit_btn:
                 await submit_btn.scroll_into_view_if_needed()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.2)
                 await submit_btn.click()
                 logger.info("2FA 제출 버튼 클릭 완료")
                 
                 # 제출 후 페이지 로드 대기 (대기 시간 단축)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.3)
                 try:
-                    await self.page.wait_for_load_state("networkidle", timeout=15000)
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                 except:
-                    logger.warning("네트워크 유휴 상태 대기 시간 초과 (계속 진행)")
+                    logger.warning("domcontentloaded 대기 시간 초과 (계속 진행)")
                 
                 logger.info("2FA 검증 완료")
                 
@@ -814,9 +904,9 @@ class BrowserAutomation:
                             logger.info("2FA 제출 후 submit 버튼 클릭 완료")
                             
                             # 버튼 클릭 후 페이지 로드 대기 (대기 시간 단축)
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(0.3)
                             try:
-                                await self.page.wait_for_load_state("networkidle", timeout=15000)
+                                await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                             except:
                                 pass
                         else:
@@ -829,7 +919,11 @@ class BrowserAutomation:
                 logger.warning("2FA 제출 버튼을 찾을 수 없습니다. (Enter 키로 시도)")
                 # Enter 키로 제출 시도
                 await code_field.press("Enter")
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.3)
+                try:
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
+                except:
+                    pass
                 return True
                 
         except Exception as e:
@@ -853,19 +947,19 @@ class BrowserAutomation:
                 if count > 0:
                     logger.info(f"Continue 버튼 발견 (시도 {attempt + 1}/{max_attempts})")
                     await continue_btn.first.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                     await continue_btn.first.click()
                     logger.info("Continue 버튼 클릭 완료")
                     
                     # 페이지 로드 대기
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                     try:
-                        await self.page.wait_for_load_state("networkidle", timeout=10000)
+                        await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
                     except:
                         pass
                     
                     # 다음 페이지에서도 같은 버튼이 있는지 확인하기 위해 잠시 대기
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(0.1)
                 else:
                     logger.info(f"Continue 버튼을 찾을 수 없음 (시도 {attempt + 1}/{max_attempts})")
                     break
@@ -873,7 +967,8 @@ class BrowserAutomation:
                 logger.debug(f"Continue 버튼 클릭 시도 중 오류 (시도 {attempt + 1}): {str(e)}")
                 break
     
-    async def handle_question_answer(self, answer: Optional[str] = None):
+    async def handle_question_answer(self, answer: Optional[str] = None, 
+                                     progress_callback: Optional[Callable[[str, Optional[Dict]], None]] = None):
         """
         질문-답변 처리 함수
         
@@ -945,6 +1040,16 @@ class BrowserAutomation:
                 await answer_field.first.fill(answer)
                 logger.info("답변 입력 완료")
                 
+                # 진행 상황 콜백 호출 (답변 입력 후)
+                if progress_callback:
+                    try:
+                        if asyncio.iscoroutinefunction(progress_callback):
+                            await progress_callback("답변 입력 완료", None)
+                        else:
+                            progress_callback("답변 입력 완료", None)
+                    except:
+                        pass
+                
                 # _continue 버튼 클릭
                 continue_btn = self.page.locator("input[name='_continue'][type='submit']")
                 count = await continue_btn.count()
@@ -952,14 +1057,14 @@ class BrowserAutomation:
                 if count > 0:
                     logger.info("_continue 버튼 클릭 중...")
                     await continue_btn.first.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                     await continue_btn.first.click()
                     logger.info("_continue 버튼 클릭 완료")
                     
                     # 페이지 로드 대기
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
                     try:
-                        await self.page.wait_for_load_state("networkidle", timeout=15000)
+                        await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                     except:
                         pass
                     
@@ -1015,10 +1120,10 @@ class BrowserAutomation:
                 # home 페이지로 이동
                 home_url = "https://onlineservices-servicesenligne.cic.gc.ca/mycic/home?&lang=en"
                 logger.info(f"home 페이지로 이동: {home_url}")
-                await self.page.goto(home_url, wait_until="networkidle", timeout=60000)
-                await asyncio.sleep(2)
+                await self.page.goto(home_url, wait_until="domcontentloaded", timeout=60000)
+                await asyncio.sleep(0.3)
                 try:
-                    await self.page.wait_for_load_state("networkidle", timeout=15000)
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                 except:
                     pass
                 
@@ -1089,14 +1194,14 @@ class BrowserAutomation:
                     if delete_btn:
                         logger.info("Express Entry 애플리케이션의 _delete 버튼 클릭 중...")
                         await delete_btn.scroll_into_view_if_needed()
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.2)
                         await delete_btn.click()
                         logger.info("_delete 버튼 클릭 완료")
                         
                         # 페이지 로드 대기
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.3)
                         try:
-                            await self.page.wait_for_load_state("networkidle", timeout=15000)
+                            await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                         except:
                             pass
                         
@@ -1108,14 +1213,14 @@ class BrowserAutomation:
                         if continue_count > 0:
                             logger.info("_continue 버튼 발견. 클릭 중...")
                             await continue_btn.first.scroll_into_view_if_needed()
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(0.2)
                             await continue_btn.first.click()
                             logger.info("_continue 버튼 클릭 완료 (삭제 최종 완료)")
                             
                             # 페이지 로드 대기
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(0.3)
                             try:
-                                await self.page.wait_for_load_state("networkidle", timeout=15000)
+                                await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                             except:
                                 pass
                         else:
@@ -1128,10 +1233,10 @@ class BrowserAutomation:
                 # kitReferenceClaim 페이지로 이동
                 kit_url = "https://onlineservices-servicesenligne.cic.gc.ca/mycic/home/kitReferenceClaim?"
                 logger.info(f"kitReferenceClaim 페이지로 이동: {kit_url}")
-                await self.page.goto(kit_url, wait_until="networkidle", timeout=60000)
-                await asyncio.sleep(2)
+                await self.page.goto(kit_url, wait_until="domcontentloaded", timeout=60000)
+                await asyncio.sleep(0.3)
                 try:
-                    await self.page.wait_for_load_state("networkidle", timeout=15000)
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                 except:
                     pass
                 
@@ -1143,14 +1248,14 @@ class BrowserAutomation:
                 if count > 0:
                     logger.info("Express Entry (EE) 버튼 발견. 클릭 중...")
                     await ee_button.first.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                     await ee_button.first.click()
                     logger.info("Express Entry (EE) 버튼 클릭 완료")
                     
                     # 페이지 로드 대기
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(0.3)
                     try:
-                        await self.page.wait_for_load_state("networkidle", timeout=15000)
+                        await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                     except:
                         pass
                     
@@ -1177,7 +1282,7 @@ class BrowserAutomation:
         try:
             # 현재 페이지에서 "continue application" 영역 확인
             logger.info("continue application 영역 확인 중...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
             
             # Express Entry 텍스트가 있는지 확인
             express_entry_text = self.page.locator("text=/Express Entry/i")
@@ -1267,14 +1372,14 @@ class BrowserAutomation:
                 if continue_btn:
                     logger.info("Express Entry 애플리케이션의 _continue 버튼 클릭 중...")
                     await continue_btn.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                     await continue_btn.click()
                     logger.info("_continue 버튼 클릭 완료")
                     
                     # 페이지 로드 대기
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(0.3)
                     try:
-                        await self.page.wait_for_load_state("networkidle", timeout=15000)
+                        await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                     except:
                         pass
                     
@@ -1295,12 +1400,12 @@ class BrowserAutomation:
             # Express Entry가 없으면 kitReferenceClaim 페이지로 이동
             logger.info("kitReferenceClaim 페이지로 이동 중...")
             kit_url = "https://onlineservices-servicesenligne.cic.gc.ca/mycic/home/kitReferenceClaim?"
-            await self.page.goto(kit_url, wait_until="networkidle", timeout=60000)
+            await self.page.goto(kit_url, wait_until="domcontentloaded", timeout=60000)
             
             # 페이지 로드 대기
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.3)
             try:
-                await self.page.wait_for_load_state("networkidle", timeout=15000)
+                await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
             except:
                 pass
             
@@ -1312,14 +1417,14 @@ class BrowserAutomation:
             if count > 0:
                 logger.info("Express Entry (EE) 버튼 발견. 클릭 중...")
                 await ee_button.first.scroll_into_view_if_needed()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.2)
                 await ee_button.first.click()
                 logger.info("Express Entry (EE) 버튼 클릭 완료")
                 
                 # 페이지 로드 대기
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.3)
                 try:
-                    await self.page.wait_for_load_state("networkidle", timeout=15000)
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=8000)
                 except:
                     pass
                 
@@ -1406,7 +1511,7 @@ class BrowserAutomation:
                 # 요소가 보이도록 스크롤
                 try:
                     await element.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.1)  # 0.5초 → 0.1초
                 except:
                     pass
                 
@@ -1415,9 +1520,9 @@ class BrowserAutomation:
                     if field_type == "text":
                         try:
                             await element.clear()
-                            await asyncio.sleep(0.2)
+                            await asyncio.sleep(0.05)  # 0.2초 → 0.05초
                             await element.fill(value)
-                            await asyncio.sleep(0.3)
+                            await asyncio.sleep(0.1)  # 0.3초 → 0.1초
                             
                             # 입력 확인
                             final_value = await element.input_value()
@@ -1464,7 +1569,7 @@ class BrowserAutomation:
                             if radio_found:
                                 if not await radio_found.is_checked():
                                     await radio_found.check()
-                                    await asyncio.sleep(0.5)
+                                    await asyncio.sleep(0.1)  # 0.5초 → 0.1초
                                     logger.info(f"  ✓ 라디오 버튼 선택 완료: {value}")
                                 else:
                                     logger.info(f"  ✓ 라디오 버튼 이미 선택됨: {value}")
@@ -1547,7 +1652,7 @@ class BrowserAutomation:
                                 else:
                                     # 값으로 선택
                                     await element.select_option(target_value)
-                                await asyncio.sleep(0.5)
+                                await asyncio.sleep(0.2)
                                 
                                 # 선택 확인
                                 selected_value = await element.input_value()
@@ -1559,7 +1664,7 @@ class BrowserAutomation:
                                     opt = options_locator.nth(matched_option_index) if matched_option_index is not None else None
                                     if opt:
                                         await opt.click()
-                                        await asyncio.sleep(0.5)
+                                        await asyncio.sleep(0.2)
                                         logger.info(f"  ✓ 셀렉트 박스 선택 완료 (클릭 방식): {target_value}")
                                 except:
                                     logger.warning(f"  대체 방법도 실패")
@@ -1575,7 +1680,7 @@ class BrowserAutomation:
                     except Exception as e:
                         logger.warning(f"  ⚠️ 셀렉트 박스 선택 실패: {str(e)}")
                 
-                await asyncio.sleep(0.5)  # 각 필드 입력 사이 대기
+                await asyncio.sleep(0.1)  # 각 필드 입력 사이 대기 (0.5초 → 0.1초)
             
             logger.info("\n=== 폼 필드 입력 완료 ===\n")
             
@@ -1637,29 +1742,61 @@ class BrowserAutomation:
             
             # 스크롤하여 버튼이 보이도록
             await save_btn.scroll_into_view_if_needed()
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
             
             # 클릭
             await save_btn.click()
             logger.info("  Save 버튼 클릭 완료")
             
-            # 저장 후 대기 및 확인
+            # 저장 후 대기 및 확인 (다음 화면이 나올 때까지 충분히 대기)
             logger.info("  저장 후 대기 중...")
-            await asyncio.sleep(2)
-            await self.page.wait_for_load_state("networkidle", timeout=30000)
+            await asyncio.sleep(1.0)  # 저장 버튼 클릭 후 초기 대기
             
-            # 페이지 전환 확인
-            try:
-                new_url = self.page.url
-                if new_url != current_url:
-                    logger.info(f"  ✓ 페이지 전환 확인: {new_url}")
-                else:
-                    logger.info("  URL 변경 없음 (같은 페이지)")
-            except Exception as e:
-                logger.warning(f"  페이지 전환 확인 중 오류: {str(e)}")
+            # 페이지 전환 또는 로드 완료까지 대기
+            max_wait_time = 15  # 최대 15초 대기
+            waited = 0
+            page_changed = False
             
-            # 추가 대기
-            await asyncio.sleep(3)
+            while waited < max_wait_time:
+                try:
+                    # URL 변경 확인
+                    new_url = self.page.url
+                    if new_url != current_url:
+                        logger.info(f"  ✓ 페이지 전환 확인: {new_url}")
+                        page_changed = True
+                        break
+                    
+                    # 페이지 로드 상태 확인
+                    try:
+                        await self.page.wait_for_load_state("load", timeout=2000)
+                        # load 상태가 완료되었으면 추가로 networkidle 확인 시도
+                        try:
+                            await self.page.wait_for_load_state("networkidle", timeout=3000)
+                            logger.info("  ✓ 페이지 로드 완료 (networkidle)")
+                            break
+                        except:
+                            # networkidle 실패해도 load는 완료되었으므로 계속 진행
+                            logger.debug("  networkidle 대기 시간 초과 (계속 진행)")
+                            break
+                    except:
+                        pass
+                    
+                    await asyncio.sleep(0.5)
+                    waited += 0.5
+                except Exception as e:
+                    logger.debug(f"  대기 중 오류: {str(e)}")
+                    break
+            
+            if not page_changed:
+                # URL이 변경되지 않았어도 페이지가 로드되었는지 확인
+                try:
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
+                    logger.info("  페이지 로드 완료 (URL 변경 없음)")
+                except:
+                    logger.warning("  페이지 로드 대기 시간 초과 (계속 진행)")
+            
+            # 최종 안정화 대기
+            await asyncio.sleep(0.5)
             
             logger.info("  저장 프로세스 완료")
             return True
@@ -1706,13 +1843,16 @@ class BrowserAutomation:
                 logger.info(f"\n[항목 {current_item}/{total_items}] 처리 중...")
                 logger.info(f"  Tag: {tag}, Name: {field_name}, Type: {field_type}, Value: {value}")
                 
-                # 페이지 로드 대기
-                try:
-                    await self.page.wait_for_load_state("networkidle", timeout=10000)
-                except:
-                    pass
-                
-                await asyncio.sleep(1)  # 페이지 안정화 대기
+                # 페이지 로드 대기 (타임아웃 단축) - 첫 번째 항목만 대기
+                if current_item == 1:
+                    try:
+                        await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
+                    except:
+                        pass
+                    await asyncio.sleep(0.2)  # 첫 번째 항목은 화면 안정화 대기
+                else:
+                    # 이후 항목들은 최소 대기만
+                    await asyncio.sleep(0.05)  # 최소 대기 시간
                 
                 # 태그 타입에 따라 처리
                 if tag == "select":
@@ -1728,7 +1868,7 @@ class BrowserAutomation:
                     
                     try:
                         await element.scroll_into_view_if_needed()
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.05)  # 최소 대기 시간
                         
                         # 옵션 검색 (정확한 매칭 우선)
                         options_locator = element.locator("option")
@@ -1792,7 +1932,7 @@ class BrowserAutomation:
                                     await element.select_option(index=matched_option_index)
                                 else:
                                     await element.select_option(target_value)
-                                await asyncio.sleep(0.5)
+                                await asyncio.sleep(0.05)  # 최소 대기 시간
                                 
                                 # 선택 확인
                                 selected_value = await element.input_value()
@@ -1803,7 +1943,7 @@ class BrowserAutomation:
                                     opt = options_locator.nth(matched_option_index) if matched_option_index is not None else None
                                     if opt:
                                         await opt.click()
-                                        await asyncio.sleep(0.5)
+                                        await asyncio.sleep(0.05)  # 최소 대기 시간
                                         logger.info(f"  ✓ 셀렉트 박스 선택 완료 (클릭 방식): {target_value}")
                                 except:
                                     logger.warning(f"  대체 방법도 실패")
@@ -1837,13 +1977,13 @@ class BrowserAutomation:
                         
                         try:
                             await submit_btn.scroll_into_view_if_needed()
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(0.1)  # 0.5초 → 0.1초
                             await submit_btn.click()
                             logger.info(f"  ✓ 제출 버튼 클릭 완료: {field_name}")
                             
-                            # 페이지 전환 대기
-                            await asyncio.sleep(3)
-                            await self.page.wait_for_load_state("networkidle", timeout=30000)
+                            # 페이지 전환 대기 (타임아웃 단축)
+                            await asyncio.sleep(1.5)  # 3초 → 1.5초
+                            await self.page.wait_for_load_state("domcontentloaded", timeout=15000)  # networkidle → domcontentloaded, 30초 → 15초
                         except Exception as e:
                             logger.warning(f"  ⚠️ 제출 버튼 클릭 실패: {str(e)}")
                     
@@ -1860,9 +2000,9 @@ class BrowserAutomation:
                         
                         try:
                             await element.scroll_into_view_if_needed()
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(0.05)  # 최소 대기 시간
                             await element.clear()
-                            await asyncio.sleep(0.2)
+                            await asyncio.sleep(0.02)  # 최소 대기 시간
                             await element.fill(value)
                             logger.info(f"  ✓ 텍스트 입력 완료: {value}")
                         except Exception as e:
@@ -1877,20 +2017,20 @@ class BrowserAutomation:
                         
                         if await link.count() > 0:
                             await link.scroll_into_view_if_needed()
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(0.1)  # 0.5초 → 0.1초
                             await link.click()
                             logger.info(f"  ✓ 링크 클릭 완료: {value}")
                             
-                            # 페이지 전환 대기
-                            await asyncio.sleep(3)
-                            await self.page.wait_for_load_state("networkidle", timeout=30000)
+                            # 페이지 전환 대기 (타임아웃 단축)
+                            await asyncio.sleep(1.5)  # 3초 → 1.5초
+                            await self.page.wait_for_load_state("domcontentloaded", timeout=15000)  # networkidle → domcontentloaded, 30초 → 15초
                         else:
                             logger.warning(f"  ⚠️ 링크를 찾을 수 없습니다: {value}")
                     except Exception as e:
                         logger.warning(f"  ⚠️ 링크 클릭 실패: {str(e)}")
                 
-                # 각 항목 처리 후 대기
-                await asyncio.sleep(1)
+                # 각 항목 처리 후 대기 (최소화)
+                await asyncio.sleep(0.05)
             
             logger.info("\n=== 순차적 폼 필드 입력 완료 ===\n")
             
